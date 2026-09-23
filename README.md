@@ -4,16 +4,9 @@
 
 [![Unity 6](https://img.shields.io/badge/Unity-6000.5.9f1-black.svg?style=flat&logo=unity)](https://unity.com/)
 [![Render Pipeline](https://img.shields.io/badge/URP-2D%20Renderer-blue.svg)](https://unity.com/features/universal-render-pipeline)
-[![Playable Demo](https://img.shields.io/badge/Playable-DEMO-brightgreen.svg)](https://play.unity.com/en/games/919513d2-c1ce-41e1-8dd9-dbd44c508bbe/space-quest)
+[![Author](https://img.shields.io/badge/Author-Soumyajit%20Paul-blueviolet.svg)](#credits--acknowledgments)
 
-**Void Protocol** is a fast-paced 2D space action game developed in Unity 6. Navigate perilous asteroid fields, defeat hostile critters, withstand aggressive enemy waves, and challenge formidable bosses in deep space.
-
----
-
-## 🎮 Playable Demo
-
-<p><strong>Play the game directly in your browser:</strong><br>
-👉 <a href="https://play.unity.com/en/games/919513d2-c1ce-41e1-8dd9-dbd44c508bbe/space-quest"><strong>https://play.unity.com/en/games/919513d2-c1ce-41e1-8dd9-dbd44c508bbe/space-quest</strong></a></p>
+**Void Protocol** is a fast-paced 2D space action game built in Unity 6. Developed by Soumyajit Paul on top of the foundational architecture from Code Laboratory, Void Protocol transforms the mechanics into an endless survival space marathon featuring escalating boss encounters, deep-space parallax visuals, dynamic buff progression, and custom combat systems.
 
 ---
 
@@ -22,30 +15,39 @@
 | Action | Keyboard / Mouse | Xbox Controller |
 | :--- | :--- | :--- |
 | **Movement** | `W`, `A`, `S`, `D` / Arrow Keys | Left Analog Stick |
-| **Attack** | Left Mouse Button / Right `Shift` | `A` Button |
-| **Super Speed Move** | Right Mouse Button / `Spacebar` | `B` Button |
-| **Pause / Unpause** | Middle Mouse Button / `Esc` | `X` Button |
+| **Phaser Attack** | Left Mouse Button / Right `Shift` | `A` Button |
+| **Super Speed Boost** | Right Mouse Button / `Spacebar` | `B` Button |
+| **Pause / Unpause** | Middle Mouse Button / `Esc` / `P` | `X` Button |
 
 ---
 
 ## ✨ Features
 
-- **Dynamic Combat:** Rapid-fire phaser weapons, bullet particle collisions, and responsive ship physics.
-- **Boss Battles & Enemy Waves:** Procedural object spawner managing critters, hazards, and multi-stage boss encounters.
-- **High-Performance Object Pooling:** Optimized pooled audio, bullet, and effect spawning using custom pooling architectures.
-- **Universal Render Pipeline (URP 2D):** Modern 2D lighting, camera shake effects, screen flashes, and multi-layer parallax space backdrops.
-- **Input System Integration:** Full cross-platform gamepad and keyboard/mouse mapping via Unity's new Input System.
+- **Endless Survival Marathon:** Time-based survival scaling (`survivalTime`), tracking total distance traversed, live HUD timers, and dynamic difficulty multipliers.
+- **Escalating Multi-Tier Boss Battles:**
+  - **Boss 1 (45s):** Heavy charging dreadnought.
+  - **Boss 2 (100s):** Accelerated interceptor with amplified endurance.
+  - **Boss 3 (150s):** High-tier titan initiating infinite loop cycles upon defeat.
+- **Damage & Invulnerability System:** Ship health calibrated to a 3-hit destruction model with 1.5s post-hit invulnerability blinking and tight physical hull colliders.
+- **Random Power-Up Progression:** Defeating hostile critters grants a 35% chance to drop temporary buffs:
+  - **Repair (+1 Health)**
+  - **Double Shot (Dual parallel phaser beams)**
+  - **Rapid Fire (Accelerated projectile rate)**
+  - **Temporary Invulnerability Shield**
+- **Performance-Tuned Architecture:** Custom object pooling for phasers, explosions, and audio; Universal Render Pipeline (URP 2D) dynamic lighting; multi-layer parallax space backdrops.
+- **Post-Game Rank Grading:** Automated grading system awarding Rank S+ (Apex), Rank S, Rank A, Rank B, or Rank C based on survival time and total score.
 
 ---
 
 ## 📂 Project Structure
 
 ```
+Void-Protocol/
 ├── Assets/
 │   ├── Animations/        # Ship, enemy, and VFX sprite animations
 │   ├── Art/               # High-res sprites, textures, and parallax backgrounds
 │   ├── Audio/             # Sound effects, ambient tracks, and audio mixer
-│   ├── Editor/            # Build automation scripts
+│   ├── Editor/            # Build automation scripts (BuildScript.cs)
 │   ├── Prefabs/           # Pre-configured game objects (Weapons, Enemies, UI)
 │   ├── Resources/         # Dynamic materials and runtime assets
 │   ├── Scenes/            # MainMenu, Level1, Level 1 Complete, GameOver
@@ -61,27 +63,33 @@
 
 ---
 
-## 🚀 Getting Started
+## 🚀 How to Play / Build
 
 ### Prerequisites
-- [Unity 6](https://unity.com/download) (Recommended version: `6000.5.9f1` or later)
-- Universal Render Pipeline (URP) support
+- [Unity 6](https://unity.com/download) (Recommended: `6000.5.9f1` or later)
+- Universal Render Pipeline (URP 2D)
 
-### Setup & Play in Unity Editor
-1. Clone this repository:
+### Play in Unity Editor
+1. Clone or download this repository:
    ```bash
    git clone https://github.com/<your-username>/Void-Protocol.git
    ```
-2. Open **Unity Hub** and click **Add** > **Add project from disk**.
-3. Select this repository folder.
-4. Launch the project using **Unity 6**.
-5. In the Project window, navigate to `Assets/Scenes/` and double-click `MainMenu.unity`.
-6. Press the **Play** button at the top of the editor.
+2. Open **Unity Hub** and click **Add > Add project from disk**.
+3. Select the `Void-Protocol` folder.
+4. Launch the project in **Unity 6**.
+5. In the Project tab, open `Assets/Scenes/MainMenu.unity` and click **Play**.
+
+### Build Standalone Executable (.exe)
+In Unity Editor:
+1. Open the project.
+2. Select **File > Build Profiles** (or click **BuildScript > Build Windows**).
+3. Unity will compile and generate `Build/VoidProtocol.exe`.
 
 ---
 
 ## 📜 Credits & Acknowledgments
 
-- **Base foundation:** Built on top of the tutorial foundation from [YouTube Tutorial](https://youtu.be/LD2gfUKkMD0).
+- **Game Creator & Developer:** Soumyajit Paul
+- **Tutorial Foundation:** Original tutorial concepts by [Code Laboratory](https://youtu.be/LD2gfUKkMD0).
 - **Audio Assets:** Music tracks by JDSherbert (Nostalgia Music Pack).
 - **Engine:** Built with [Unity 6](https://unity.com/).
