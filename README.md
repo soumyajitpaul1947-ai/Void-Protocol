@@ -65,11 +65,10 @@ Void-Protocol/
 
 ## 🚀 How to Play / Build
 
-### ⚡ Instant Standalone Play (No Unity Required)
-You can play **Void Protocol** immediately on your Windows PC:
-1. Simply double-click **`Play_Void_Protocol.bat`** in this folder.
-2. The game will automatically launch in your web browser at 60 FPS with full authentic sound effects, sliced sprite animations, 3-tier boss battles, and keyboard/mouse controls!
-   *(Alternatively, open the `Playable_Game/` folder and double-click `Play.bat`)*
+### ⚡ Instant Standalone Play (.EXE Included)
+You can play **Void Protocol** immediately on your Windows PC with zero setup:
+1. Simply double-click **`VoidProtocol.exe`** in this folder! It launches the complete, native 60 FPS desktop game window directly.
+2. *(Alternative: You can also double-click `Play_Void_Protocol.bat` or open `Playable_Game/Play.bat`)*
 
 ### Play in Unity Editor
 1. Clone or download this repository:

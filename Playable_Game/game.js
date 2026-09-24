@@ -102,25 +102,29 @@ loadImage('bg4', 'assets/art/layer4.png');
 loadImage('bullet', 'assets/art/bullet1.png');
 loadImage('player_gameover', 'assets/art/player_game_over.png');
 
-// Sliced Sprites
-const playerFrames = [];
-for (let i = 0; i < 10; i++) playerFrames.push(loadImage(`player_${i}`, `assets/sprites/player_sprite_${i}.png`));
+// Specific Player Sprites (Mapped to Unity Clips)
+loadImage('player_0', 'assets/sprites/player_sprite_0.png'); // Idle / Straight
+loadImage('player_1', 'assets/sprites/player_sprite_1.png'); // Thruster flare
+loadImage('player_2', 'assets/sprites/player_sprite_2.png'); // Down bank
+loadImage('player_3', 'assets/sprites/player_sprite_3.png'); // Up bank
+loadImage('player_6', 'assets/sprites/player_sprite_6.png'); // Left bank
+loadImage('player_boost', 'assets/sprites/player_sprite_9.png'); // Full boost flame
 
+// Critter Frames
 const critterFrames = [];
 for (let i = 0; i < 4; i++) critterFrames.push(loadImage(`critter_${i}`, `assets/sprites/critter1_sprite_${i}.png`));
 
-const critterBurnFrames = [];
-for (let i = 0; i < 16; i++) critterBurnFrames.push(loadImage(`burn_${i}`, `assets/sprites/critter1_burn_${i}.png`));
-
+// Explosion Frames
 const boomFrames = [];
 for (let i = 0; i < 21; i++) boomFrames.push(loadImage(`boom_${i}`, `assets/sprites/boom2_${i}.png`));
 
+// Boss Frames
 const bossFrames = [];
 for (let i = 0; i < 78; i++) bossFrames.push(loadImage(`boss_${i}`, `assets/sprites/boss1_${i}.png`));
 
 // --- Game State & Input ---
 const keys = {};
-let mouseX = 0, mouseY = 0, isMouseDown = false, isRightMouseDown = false;
+let isMouseDown = false, isRightMouseDown = false;
 
 window.addEventListener('keydown', e => {
     keys[e.code] = true;
@@ -151,6 +155,20 @@ let worldSpeed = 160;
 let bgOffsets = [0, 0, 0, 0];
 const bgSpeeds = [0.15, 0.45, 0.8, 1.4];
 
+// --- Engine Exhaust Particle System for Boost ---
+const boostParticles = [];
+function addBoostParticle(x, y) {
+    boostParticles.push({
+        x: x + (Math.random() * 8 - 4),
+        y: y + (Math.random() * 12 - 6),
+        vx: -(300 + Math.random() * 250),
+        vy: (Math.random() * 60 - 30),
+        size: 8 + Math.random() * 10,
+        alpha: 0.9,
+        color: Math.random() > 0.4 ? '#38bdf8' : '#f97316'
+    });
+}
+
 // --- Entities ---
 class Player {
     constructor() {
@@ -167,11 +185,10 @@ class Player {
         this.isBoosting = false;
         this.isInvulnerable = false;
         this.invulnerableTimer = 0;
-        this.animTimer = 0;
-        this.currentFrame = 0;
 
         // Buff Timers
         this.doubleShotTimer = 0;
+        this.tripleShotTimer = 0;
         this.rapidFireTimer = 0;
         this.superShieldTimer = 0;
 
@@ -183,10 +200,12 @@ class Player {
         const boostKey = keys['Space'] || isRightMouseDown || keys['KeyE'];
         if (boostKey && this.energy > 0) {
             this.isBoosting = true;
-            this.energy = Math.max(0, this.energy - 35 * dt);
+            this.energy = Math.max(0, this.energy - 40 * dt);
+            // Spawn boost exhaust particles behind engine
+            addBoostParticle(this.x - 70, this.y + this.height / 2);
         } else {
             this.isBoosting = false;
-            this.energy = Math.min(this.maxEnergy, this.energy + 20 * dt);
+            this.energy = Math.min(this.maxEnergy, this.energy + 22 * dt);
         }
 
         const currentSpeed = this.isBoosting ? this.boostSpeed : this.speed;
@@ -206,31 +225,26 @@ class Player {
         this.x = Math.max(30, Math.min(canvas.width - 120, this.x + dx * currentSpeed * dt));
         this.y = Math.max(40, Math.min(canvas.height - 80, this.y + dy * currentSpeed * dt));
 
-        // Animation frame cycle
-        this.animTimer += dt;
-        if (this.animTimer > 0.08) {
-            this.animTimer = 0;
-            this.currentFrame = (this.currentFrame + 1) % playerFrames.length;
-        }
-
-        // Invulnerability countdown
-        if (this.invulnerableTimer > 0) {
-            this.invulnerableTimer -= dt;
-            if (this.invulnerableTimer <= 0) this.isInvulnerable = false;
-        }
-
-        // Buff Timers
+        // Decrement Buff Timers
+        if (this.tripleShotTimer > 0) this.tripleShotTimer -= dt;
         if (this.doubleShotTimer > 0) this.doubleShotTimer -= dt;
         if (this.rapidFireTimer > 0) this.rapidFireTimer -= dt;
+
+        // Strict Invulnerability Handling
         if (this.superShieldTimer > 0) {
             this.superShieldTimer -= dt;
             this.isInvulnerable = true;
+        } else if (this.invulnerableTimer > 0) {
+            this.invulnerableTimer -= dt;
+            this.isInvulnerable = true;
+        } else {
+            this.isInvulnerable = false; // Strictly reset when no timers active!
         }
 
         // Weapon firing
         this.fireCooldown -= dt;
         const shootKey = keys['ShiftLeft'] || keys['ShiftRight'] || isMouseDown;
-        const cooldownTime = this.rapidFireTimer > 0 ? 0.09 : 0.18;
+        const cooldownTime = this.rapidFireTimer > 0 ? 0.08 : 0.18;
 
         if (shootKey && this.fireCooldown <= 0) {
             this.fireCooldown = cooldownTime;
@@ -240,11 +254,18 @@ class Player {
 
     shoot() {
         sounds.play('shoot', 0.4);
-        if (this.doubleShotTimer > 0) {
-            bullets.push(new Bullet(this.x + this.width - 10, this.y + 12));
-            bullets.push(new Bullet(this.x + this.width - 10, this.y + this.height - 18));
+        if (this.tripleShotTimer > 0) {
+            // Triple Shot: 3 spread beams
+            bullets.push(new Bullet(this.x + this.width - 5, this.y + 4, 920, -50));
+            bullets.push(new Bullet(this.x + this.width - 5, this.y + this.height / 2 - 5, 920, 0));
+            bullets.push(new Bullet(this.x + this.width - 5, this.y + this.height - 14, 920, 50));
+        } else if (this.doubleShotTimer > 0) {
+            // Double Shot: 2 parallel beams
+            bullets.push(new Bullet(this.x + this.width - 5, this.y + 10, 900, 0));
+            bullets.push(new Bullet(this.x + this.width - 5, this.y + this.height - 18, 900, 0));
         } else {
-            bullets.push(new Bullet(this.x + this.width - 10, this.y + this.height / 2 - 4));
+            // Standard single phaser
+            bullets.push(new Bullet(this.x + this.width - 5, this.y + this.height / 2 - 5, 900, 0));
         }
     }
 
@@ -254,7 +275,7 @@ class Player {
         this.isInvulnerable = true;
         this.invulnerableTimer = 1.5;
         sounds.play('hit', 0.6);
-        spawnFloatingText(this.x + 20, this.y - 15, '-1 HEALTH', '#ef4444');
+        spawnFloatingText(this.x + 20, this.y - 15, `-${amount} HEALTH`, '#ef4444');
 
         if (this.health <= 0) {
             this.health = 0;
@@ -272,6 +293,9 @@ class Player {
         sounds.play('buff', 0.8);
         if (type === 'HEAL') {
             this.heal(1);
+        } else if (type === 'TRIPLE_SHOT') {
+            this.tripleShotTimer = 12;
+            spawnFloatingText(this.x + 10, this.y - 25, 'TRIPLE SHOT (12s)!', '#fb923c');
         } else if (type === 'DOUBLE_SHOT') {
             this.doubleShotTimer = 14;
             spawnFloatingText(this.x + 10, this.y - 25, 'DOUBLE SHOT (14s)!', '#38bdf8');
@@ -280,68 +304,82 @@ class Player {
             spawnFloatingText(this.x + 10, this.y - 25, 'RAPID FIRE (12s)!', '#fde047');
         } else if (type === 'SHIELD') {
             this.superShieldTimer = 8;
+            this.isInvulnerable = true;
             spawnFloatingText(this.x + 10, this.y - 25, 'SUPER SHIELD (8s)!', '#a855f7');
         }
     }
 
     draw() {
-        if (this.isInvulnerable && Math.floor(Date.now() / 80) % 2 === 0) {
-            return; // Blinking effect during invulnerability
+        // Blinking effect during invulnerability
+        if (this.isInvulnerable && this.superShieldTimer <= 0 && Math.floor(Date.now() / 80) % 2 === 0) {
+            return;
         }
 
-        const frame = playerFrames[this.currentFrame] || playerFrames[0];
-        if (frame && frame.complete) {
-            ctx.drawImage(frame, this.x, this.y, this.width, this.height);
+        if (this.isBoosting) {
+            // Render full boost sprite (player_sprite_9, width 188 with exhaust flame)
+            const boostImg = images['player_boost'] || images['player_0'];
+            if (boostImg && boostImg.complete) {
+                const drawW = 178;
+                const drawH = 70;
+                const drawX = this.x - 83; // Preserves front nose alignment with normal ship
+                ctx.drawImage(boostImg, drawX, this.y, drawW, drawH);
+            }
         } else {
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+            // Select directional animation frame
+            let frame = images['player_0'];
+            if (keys['KeyW'] || keys['ArrowUp']) {
+                frame = images['player_3'] || images['player_0']; // Bank Up
+            } else if (keys['KeyS'] || keys['ArrowDown']) {
+                frame = images['player_2'] || images['player_0']; // Bank Down
+            } else if (keys['KeyA'] || keys['ArrowLeft']) {
+                frame = images['player_6'] || images['player_0']; // Bank Left / Decel
+            } else {
+                // Subtle engine idle flame flicker
+                frame = Math.floor(Date.now() / 120) % 2 === 0 ? images['player_0'] : images['player_1'];
+            }
+
+            if (frame && frame.complete) {
+                ctx.drawImage(frame, this.x, this.y, this.width, this.height);
+            }
         }
 
-        // Shield Aura
+        // Super Shield Forcefield Visual
         if (this.superShieldTimer > 0) {
+            ctx.save();
             ctx.beginPath();
-            ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width * 0.65, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(168, 85, 247, ${0.5 + Math.sin(Date.now() / 100) * 0.3})`;
-            ctx.lineWidth = 4;
+            ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 54, 0, Math.PI * 2);
+            ctx.strokeStyle = this.superShieldTimer <= 2 ? '#fde047' : '#a855f7';
+            ctx.lineWidth = 3.5;
             ctx.shadowColor = '#a855f7';
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = 16;
             ctx.stroke();
-            ctx.shadowBlur = 0;
-        }
 
-        // Engine Thruster Glow
-        ctx.beginPath();
-        const thrusterX = this.x;
-        const thrusterY = this.y + this.height / 2;
-        const flameLen = this.isBoosting ? 38 + Math.random() * 15 : 18 + Math.random() * 8;
-        ctx.moveTo(thrusterX, thrusterY - 10);
-        ctx.lineTo(thrusterX - flameLen, thrusterY);
-        ctx.lineTo(thrusterX, thrusterY + 10);
-        ctx.fillStyle = this.isBoosting ? '#38bdf8' : '#f97316';
-        ctx.shadowColor = this.isBoosting ? '#38bdf8' : '#f97316';
-        ctx.shadowBlur = 12;
-        ctx.fill();
-        ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
+            ctx.fill();
+            ctx.restore();
+        }
     }
 }
 
 class Bullet {
-    constructor(x, y) {
+    constructor(x, y, vx = 900, vy = 0) {
         this.x = x;
         this.y = y;
-        this.width = 28;
+        this.vx = vx;
+        this.vy = vy;
+        this.width = 24;
         this.height = 10;
-        this.speed = 1050;
     }
 
     update(dt) {
-        this.x += this.speed * dt;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
     }
 
     draw() {
-        const bulletImg = images['bullet'];
-        if (bulletImg && bulletImg.complete) {
-            ctx.drawImage(bulletImg, this.x, this.y, this.width, this.height);
+        const img = images['bullet'];
+        if (img && img.complete) {
+            ctx.drawImage(img, this.x, this.y, this.width, this.height);
         } else {
             ctx.fillStyle = '#38bdf8';
             ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -379,7 +417,18 @@ class Critter {
     draw() {
         const frame = critterFrames[this.currentFrame] || critterFrames[0];
         if (frame && frame.complete) {
-            ctx.drawImage(frame, this.x, this.y, this.width, this.height);
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            const targetX = player ? player.x + player.width / 2 : 0;
+            const targetY = player ? player.y + player.height / 2 : cy;
+            // Critter sprite naturally faces UP; rotate to face player ship
+            const angle = Math.atan2(targetY - cy, targetX - cx);
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle + Math.PI / 2);
+            ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
+            ctx.restore();
         } else {
             ctx.fillStyle = '#ef4444';
             ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -396,10 +445,10 @@ class Boss {
         this.x = canvas.width + 100;
         this.y = canvas.height / 2 - this.height / 2;
         this.targetY = canvas.height / 2;
-        this.maxHp = tier === 1 ? 40 : (tier === 2 ? 75 : 120);
+        this.maxHp = tier === 1 ? 50 : (tier === 2 ? 85 : 140);
         this.hp = this.maxHp;
         this.speed = tier === 1 ? 260 : (tier === 2 ? 330 : 410);
-        this.state = 'ENTER'; // 'ENTER', 'HOVER', 'CHARGE', 'RETREAT'
+        this.state = 'ENTER'; // 'ENTER', 'HOVER', 'CHARGE'
         this.stateTimer = 0;
         this.currentFrame = 0;
         this.animTimer = 0;
@@ -422,10 +471,10 @@ class Boss {
                 this.stateTimer = 0;
             }
         } else if (this.state === 'HOVER') {
-            // Gentle hovering vertical tracking
+            // Track player altitude
             if (player) {
                 const diff = (player.y - this.y);
-                this.y += Math.sign(diff) * Math.min(Math.abs(diff), 150 * dt);
+                this.y += Math.sign(diff) * Math.min(Math.abs(diff), 160 * dt);
             }
             if (this.stateTimer > (this.tier === 1 ? 4 : 2.5)) {
                 this.state = 'CHARGE';
@@ -433,8 +482,8 @@ class Boss {
             }
         } else if (this.state === 'CHARGE') {
             this.x -= this.speed * 1.8 * dt;
-            if (this.x < -this.width - 40) {
-                // Loop around after charge
+            if (this.x < -this.width - 60) {
+                // Loop back for re-entry
                 this.x = canvas.width + 80;
                 this.y = 80 + Math.random() * (canvas.height - 240);
                 this.state = 'ENTER';
@@ -446,11 +495,17 @@ class Boss {
     draw() {
         const frame = bossFrames[this.currentFrame] || bossFrames[0];
         if (frame && frame.complete) {
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height / 2;
+            const targetX = player ? player.x + player.width / 2 : 0;
+            const targetY = player ? player.y + player.height / 2 : cy;
+            // Boss sprite nose points DOWN in raw asset; rotate so nose faces player ship
+            const angle = Math.atan2(targetY - cy, targetX - cx);
+
             ctx.save();
-            ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
-            // Rotate -90 degrees like Unity boss
-            ctx.rotate(-Math.PI / 2);
-            ctx.drawImage(frame, -this.height / 2, -this.width / 2, this.height, this.width);
+            ctx.translate(cx, cy);
+            ctx.rotate(angle - Math.PI / 2);
+            ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
             ctx.restore();
         } else {
             ctx.fillStyle = '#dc2626';
@@ -479,7 +534,7 @@ class Explosion {
     }
 
     draw() {
-        const img = boomFrames[this.frame];
+        const img = boomFrames[this.frame] || boomFrames[0];
         if (img && img.complete) {
             ctx.drawImage(img, this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
         }
@@ -490,10 +545,10 @@ class PowerUpItem {
     constructor(x, y, type) {
         this.x = x;
         this.y = y;
-        this.type = type; // 'HEAL', 'DOUBLE_SHOT', 'RAPID_FIRE', 'SHIELD'
-        this.radius = 20;
+        this.type = type; // 'HEAL', 'DOUBLE_SHOT', 'TRIPLE_SHOT', 'RAPID_FIRE', 'SHIELD'
+        this.radius = 16;
+        this.speed = 120;
         this.time = 0;
-        this.speed = 130;
     }
 
     update(dt) {
@@ -506,11 +561,13 @@ class PowerUpItem {
         ctx.save();
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
         let color = '#38bdf8';
-        let label = 'D';
+        let label = '2';
         if (this.type === 'HEAL') { color = '#4ade80'; label = '+'; }
-        if (this.type === 'RAPID_FIRE') { color = '#fde047'; label = 'R'; }
-        if (this.type === 'SHIELD') { color = '#a855f7'; label = 'S'; }
+        else if (this.type === 'TRIPLE_SHOT') { color = '#fb923c'; label = '3'; }
+        else if (this.type === 'RAPID_FIRE') { color = '#fde047'; label = 'R'; }
+        else if (this.type === 'SHIELD') { color = '#a855f7'; label = 'S'; }
 
         ctx.fillStyle = color;
         ctx.shadowColor = color;
@@ -518,7 +575,7 @@ class PowerUpItem {
         ctx.fill();
 
         ctx.fillStyle = '#030712';
-        ctx.font = 'bold 16px sans-serif';
+        ctx.font = 'bold 15px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(label, this.x, this.y);
@@ -540,7 +597,6 @@ let explosions = [];
 let powerUps = [];
 let critterSpawnTimer = 0;
 let bossCycleCount = 0;
-
 let nextBossTime = 45;
 
 function resetGame() {
@@ -558,12 +614,12 @@ function resetGame() {
     activeBoss = null;
     explosions = [];
     powerUps = [];
+    boostParticles.length = 0;
     floatingTexts.length = 0;
 }
 
 // --- Spawner Logic ---
 function updateSpawners(dt) {
-    // Critter spawning
     critterSpawnTimer += dt;
     const spawnInterval = Math.max(0.65, 2.0 - (survivalTime / 90) * 1.1);
     if (critterSpawnTimer >= spawnInterval) {
@@ -571,7 +627,6 @@ function updateSpawners(dt) {
         critters.push(new Critter());
     }
 
-    // Boss spawning timeline
     if (!activeBoss && survivalTime >= nextBossTime) {
         let tier = 1;
         if (survivalTime >= 150) tier = 3;
@@ -587,34 +642,45 @@ function update(dt) {
     survivalTime += dt;
     distance += worldSpeed * dt * 0.8;
 
-    // Combo decay
     if (comboTimer > 0) {
         comboTimer -= dt;
         if (comboTimer <= 0) combo = 0;
     }
 
-    // Update Parallax Backgrounds
+    // Parallax
     for (let i = 0; i < 4; i++) {
         bgOffsets[i] = (bgOffsets[i] + worldSpeed * bgSpeeds[i] * dt) % canvas.width;
+    }
+
+    // Boost particles
+    for (let i = boostParticles.length - 1; i >= 0; i--) {
+        const bp = boostParticles[i];
+        bp.x += bp.vx * dt;
+        bp.y += bp.vy * dt;
+        bp.alpha -= dt * 2.2;
+        bp.size = Math.max(0, bp.size - dt * 10);
+        if (bp.alpha <= 0) boostParticles.splice(i, 1);
     }
 
     player.update(dt);
     updateSpawners(dt);
 
-    // Update bullets
+    // Bullets
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.update(dt);
-        if (b.x > canvas.width) bullets.splice(i, 1);
+        if (b.x > canvas.width || b.y < -20 || b.y > canvas.height + 20) {
+            bullets.splice(i, 1);
+        }
     }
 
-    // Update critters & collisions
+    // Critters & Collisions
     for (let i = critters.length - 1; i >= 0; i--) {
         const c = critters[i];
         c.update(dt);
 
-        // Check bullet hits
         let critterDead = false;
+        // Bullet hits critter
         for (let j = bullets.length - 1; j >= 0; j--) {
             const b = bullets[j];
             if (checkCollision(b, c)) {
@@ -624,7 +690,7 @@ function update(dt) {
             }
         }
 
-        // Check player collision
+        // Player hits critter
         if (!critterDead && checkCollision(player, c)) {
             if (player.isBoosting) {
                 // Ramming while boosting destroys critter safely!
@@ -644,9 +710,9 @@ function update(dt) {
             comboTimer = 3.5;
             score += 100 * Math.max(1, combo);
 
-            // 35% chance to drop power-up
-            if (Math.random() < 0.35) {
-                const types = ['HEAL', 'DOUBLE_SHOT', 'RAPID_FIRE', 'SHIELD'];
+            // 11% buff drop rate (faithful to Void Protocol Critter1.cs line 99)
+            if (Math.random() < 0.11) {
+                const types = ['HEAL', 'DOUBLE_SHOT', 'TRIPLE_SHOT', 'RAPID_FIRE', 'SHIELD'];
                 const chosen = types[Math.floor(Math.random() * types.length)];
                 powerUps.push(new PowerUpItem(c.x + c.width / 2, c.y + c.height / 2, chosen));
             }
@@ -658,7 +724,7 @@ function update(dt) {
         if (c.x < -c.width - 50) critters.splice(i, 1);
     }
 
-    // Update Boss
+    // Boss Updates & Collisions
     if (activeBoss) {
         activeBoss.update(dt);
 
@@ -673,7 +739,6 @@ function update(dt) {
                 score += 50;
 
                 if (activeBoss.hp <= 0) {
-                    // Boss Defeated!
                     sounds.play('explode_big', 0.9);
                     explosions.push(new Explosion(activeBoss.x + activeBoss.width / 2, activeBoss.y + activeBoss.height / 2, 260));
                     bossCycleCount++;
@@ -688,13 +753,25 @@ function update(dt) {
             }
         }
 
-        // Player colliding with boss
-        if (activeBoss && checkCollision(player, activeBoss)) {
-            player.takeDamage(1);
+        // Player colliding directly with Boss
+        if (activeBoss) {
+            const pCenterX = player.x + player.width / 2;
+            const pCenterY = player.y + player.height / 2;
+            const bCenterX = activeBoss.x + activeBoss.width / 2;
+            const bCenterY = activeBoss.y + activeBoss.height / 2;
+            const dist = Math.hypot(pCenterX - bCenterX, pCenterY - bCenterY);
+
+            // Distance threshold matches Unity Boss collider
+            if (dist < (player.width * 0.45 + activeBoss.width * 0.38)) {
+                if (!player.isInvulnerable) {
+                    player.takeDamage(2); // In Unity, Boss collision deals 2 damage!
+                    player.x = Math.max(30, player.x - 70); // Knockback
+                }
+            }
         }
     }
 
-    // Update PowerUps
+    // PowerUps
     for (let i = powerUps.length - 1; i >= 0; i--) {
         const p = powerUps[i];
         p.update(dt);
@@ -706,13 +783,13 @@ function update(dt) {
         if (p.x < -50) powerUps.splice(i, 1);
     }
 
-    // Update Explosions
+    // Explosions
     for (let i = explosions.length - 1; i >= 0; i--) {
         explosions[i].update(dt);
         if (explosions[i].done) explosions.splice(i, 1);
     }
 
-    // Update Floating Text
+    // Floating Text
     for (let i = floatingTexts.length - 1; i >= 0; i--) {
         const ft = floatingTexts[i];
         ft.y -= 25 * dt;
@@ -742,7 +819,7 @@ function checkCircleBoxCollision(c, b) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Draw Parallax Backgrounds
+    // 1. Parallax Backgrounds
     for (let i = 0; i < 4; i++) {
         const bg = images[`bg${i + 1}`];
         if (bg && bg.complete) {
@@ -752,39 +829,57 @@ function draw() {
         }
     }
 
-    // 2. Draw Entities
-    for (const p of powerUps) p.draw();
-    for (const b of bullets) b.draw();
-    for (const c of critters) c.draw();
-    if (activeBoss) activeBoss.draw();
-    player.draw();
-    for (const exp of explosions) exp.draw();
+    // 2. Boost Particles
+    for (const bp of boostParticles) {
+        ctx.save();
+        ctx.globalAlpha = bp.alpha;
+        ctx.fillStyle = bp.color;
+        ctx.shadowColor = bp.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(bp.x, bp.y, bp.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
 
-    // 3. Draw Floating Text
+    // 3. Power-Ups
+    for (const p of powerUps) p.draw();
+
+    // 4. Critters
+    for (const c of critters) c.draw();
+
+    // 5. Boss
+    if (activeBoss) activeBoss.draw();
+
+    // 6. Bullets
+    for (const b of bullets) b.draw();
+
+    // 7. Player
+    player.draw();
+
+    // 8. Explosions
+    for (const ex of explosions) ex.draw();
+
+    // 9. Floating Texts
     for (const ft of floatingTexts) {
         ctx.save();
         ctx.globalAlpha = ft.alpha;
         ctx.fillStyle = ft.color;
-        ctx.font = 'bold 20px "Segoe UI", sans-serif';
-        ctx.textAlign = 'center';
+        ctx.font = 'bold 18px sans-serif';
         ctx.shadowColor = ft.color;
         ctx.shadowBlur = 8;
         ctx.fillText(ft.text, ft.x, ft.y);
         ctx.restore();
     }
 
-    // 4. Draw HUD (If playing)
-    if (gameState === 'PLAYING') {
-        drawHUD();
-    }
+    // 10. HUD Overlays
+    drawHUD();
 }
 
 function drawHUD() {
-    ctx.save();
-
-    // Top Header: TIME & DISTANCE
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+    // Top-Center Info Capsule
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+    ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.roundRect(canvas.width / 2 - 210, 16, 420, 44, 8);
@@ -808,21 +903,55 @@ function drawHUD() {
     ctx.fillStyle = '#38bdf8';
     ctx.fillText(`${distKm} KM`, canvas.width / 2 + 120, 44);
 
-    // Left HUD: Health & Energy
+    // Left HUD: Health
     ctx.font = '24px sans-serif';
     ctx.textAlign = 'left';
     let hearts = '';
     for (let i = 0; i < player.health; i++) hearts += '❤️ ';
     for (let i = player.health; i < player.maxHealth; i++) hearts += '🖤 ';
-    ctx.fillText(hearts, 24, 44);
+    ctx.fillText(hearts, 24, 40);
 
-    // Energy Bar
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
-    ctx.fillRect(24, 56, 160, 10);
-    ctx.fillStyle = player.energy > 25 ? '#38bdf8' : '#ef4444';
-    ctx.fillRect(24, 56, (player.energy / player.maxEnergy) * 160, 10);
-    ctx.strokeStyle = '#475569';
-    ctx.strokeRect(24, 56, 160, 10);
+    // Labeled Boost / Energy Bar
+    const bBarX = 24;
+    const bBarY = 68;
+    const bBarW = 190;
+    const bBarH = 14;
+
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText('BOOST / RAM [SPACE / R-CLICK]', bBarX, bBarY - 6);
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fillRect(bBarX, bBarY, bBarW, bBarH);
+
+    const boostPct = Math.max(0, player.energy / player.maxEnergy);
+    ctx.fillStyle = player.energy > 25 ? '#0284c7' : '#ef4444';
+    ctx.fillRect(bBarX, bBarY, boostPct * bBarW, bBarH);
+    ctx.fillStyle = player.energy > 25 ? '#38bdf8' : '#f87171';
+    ctx.fillRect(bBarX, bBarY, boostPct * bBarW, bBarH / 2);
+
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(bBarX, bBarY, bBarW, bBarH);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.round(boostPct * 100)}%`, bBarX + bBarW / 2, bBarY + 11);
+
+    // Active Buffs Indicators
+    let activeBuffs = [];
+    if (player.tripleShotTimer > 0) activeBuffs.push(`TRIPLE SHOT [${Math.ceil(player.tripleShotTimer)}s]`);
+    if (player.doubleShotTimer > 0 && player.tripleShotTimer <= 0) activeBuffs.push(`DOUBLE SHOT [${Math.ceil(player.doubleShotTimer)}s]`);
+    if (player.rapidFireTimer > 0) activeBuffs.push(`RAPID FIRE [${Math.ceil(player.rapidFireTimer)}s]`);
+    if (player.superShieldTimer > 0) activeBuffs.push(`SHIELD [${Math.ceil(player.superShieldTimer)}s]`);
+
+    if (activeBuffs.length > 0) {
+        ctx.font = 'bold 13px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#fde047';
+        ctx.fillText(activeBuffs.join(' | '), bBarX, bBarY + 30);
+    }
 
     // Right HUD: Score & Combo
     ctx.textAlign = 'right';
@@ -844,6 +973,7 @@ function drawHUD() {
         const barY = canvas.height - 48;
 
         ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctx.beginPath();
         ctx.roundRect(barX - 10, barY - 26, barW + 20, 52, 6);
         ctx.fill();
 
@@ -859,15 +989,12 @@ function drawHUD() {
         ctx.strokeStyle = '#f87171';
         ctx.strokeRect(barX, barY, barW, barH);
     }
-
-    ctx.restore();
 }
 
 function triggerGameOver() {
     gameState = 'GAMEOVER';
     sounds.play('explode_big', 0.9);
 
-    // Calculate Rank
     let rank = 'RANK C';
     let color = '#94a3b8';
     if (score >= 40000 || survivalTime >= 180) { rank = 'RANK S+ (APEX)'; color = '#f43f5e'; }
@@ -901,7 +1028,7 @@ function togglePause() {
     }
 }
 
-// --- UI Event Handlers ---
+// UI Event Handlers
 document.getElementById('start-btn').addEventListener('click', () => {
     sounds.init();
     resetGame();
@@ -919,7 +1046,7 @@ document.getElementById('restart-btn').addEventListener('click', () => {
     document.getElementById('gameover-overlay').classList.add('hidden');
 });
 
-// --- Game Animation Loop ---
+// Animation Loop
 let lastTime = performance.now();
 function gameLoop(now) {
     const dt = Math.min((now - lastTime) / 1000, 0.1);
