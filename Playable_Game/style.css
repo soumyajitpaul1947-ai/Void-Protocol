@@ -53,35 +53,72 @@ canvas#gameCanvas {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: rgba(3, 7, 18, 0.85);
-    backdrop-filter: blur(8px);
+    background: radial-gradient(circle at center, rgba(15, 23, 42, 0.82) 0%, rgba(3, 7, 18, 0.94) 100%);
+    backdrop-filter: blur(10px);
     z-index: 10;
     transition: opacity 0.3s ease;
+    padding: 20px;
 }
 
 .hidden {
     display: none !important;
 }
 
-/* Start Menu */
+/* Animations */
+@keyframes shipLevitate {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+        filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.5));
+    }
+    50% {
+        transform: translateY(-8px) rotate(1deg);
+        filter: drop-shadow(0 0 32px rgba(56, 189, 248, 0.85));
+    }
+}
+
+@keyframes wreckageSmoke {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.45));
+    }
+    50% {
+        transform: scale(1.04);
+        filter: drop-shadow(0 0 28px rgba(239, 68, 68, 0.85));
+    }
+}
+
+/* Start Menu Hero */
+.menu-hero {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.menu-ship-img {
+    width: 140px;
+    height: auto;
+    animation: shipLevitate 3.5s ease-in-out infinite;
+}
+
 .title-container {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .game-title {
-    font-size: 68px;
+    font-size: 64px;
     font-weight: 900;
     letter-spacing: 8px;
     background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
-    margin-bottom: 8px;
+    text-shadow: 0 0 35px rgba(56, 189, 248, 0.6);
+    margin-bottom: 6px;
 }
 
 .game-subtitle {
-    font-size: 20px;
+    font-size: 17px;
     letter-spacing: 4px;
     color: #94a3b8;
     text-transform: uppercase;
@@ -90,93 +127,209 @@ canvas#gameCanvas {
 .controls-guide {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px 24px;
-    background: rgba(15, 23, 42, 0.8);
-    border: 1px solid rgba(56, 189, 248, 0.3);
-    padding: 18px 28px;
-    border-radius: 8px;
-    margin-bottom: 28px;
-    font-size: 15px;
+    gap: 10px 24px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.15), inset 0 0 15px rgba(56, 189, 248, 0.05);
+    padding: 14px 28px;
+    border-radius: 12px;
+    margin-bottom: 22px;
+    font-size: 14px;
+    min-width: 480px;
 }
 
 .control-item {
     display: flex;
     justify-content: space-between;
-    gap: 20px;
+    align-items: center;
+    gap: 16px;
+    color: #cbd5e1;
+    font-size: 13px;
+    letter-spacing: 1px;
 }
 
 .key {
-    background: #1e293b;
-    border: 1px solid #475569;
-    padding: 2px 8px;
-    border-radius: 4px;
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    padding: 3px 10px;
+    border-radius: 6px;
     color: #38bdf8;
     font-family: monospace;
     font-weight: bold;
+    font-size: 12px;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
 }
 
+/* Authentic SpaceQuest-Inspired Sci-Fi Pill Buttons */
 .btn-primary {
-    background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+    position: relative;
+    background: url('assets/art/CGB02-blue_L_btn.png') no-repeat center center / 100% 100%;
     color: #ffffff;
-    border: 1px solid #38bdf8;
-    padding: 14px 44px;
-    font-size: 22px;
-    font-weight: bold;
+    border: none;
+    min-width: 270px;
+    height: 56px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 19px;
+    font-weight: 800;
     letter-spacing: 2px;
-    border-radius: 6px;
+    text-transform: uppercase;
+    border-radius: 9999px;
     cursor: pointer;
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
-    transition: all 0.2s ease;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7), 0 0 10px rgba(56, 189, 248, 0.9);
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.45), 0 6px 16px rgba(0, 0, 0, 0.6);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    outline: none;
 }
 
 .btn-primary:hover:not(:disabled) {
     transform: scale(1.05);
-    box-shadow: 0 0 30px rgba(56, 189, 248, 0.7);
+    filter: brightness(1.18);
+    box-shadow: 0 0 40px rgba(56, 189, 248, 0.8), 0 8px 24px rgba(0, 0, 0, 0.8);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: scale(0.97);
 }
 
 .btn-primary:disabled {
-    opacity: 0.6;
+    opacity: 0.55;
     cursor: wait;
     transform: none;
     box-shadow: none;
 }
 
-/* Game Over Card */
-.stats-card {
-    background: rgba(15, 23, 42, 0.9);
-    border: 2px solid #ef4444;
-    padding: 24px 36px;
-    border-radius: 10px;
-    text-align: center;
-    margin-bottom: 24px;
-    box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
-    min-width: 440px;
+.btn-secondary {
+    position: relative;
+    background: rgba(15, 23, 42, 0.85);
+    color: #94a3b8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    min-width: 210px;
+    height: 52px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-radius: 9999px;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease;
+    outline: none;
 }
 
-.stats-card.victory {
-    border-color: #22c55e;
-    box-shadow: 0 0 30px rgba(34, 197, 94, 0.3);
+.btn-secondary:hover {
+    color: #ffffff;
+    border-color: #38bdf8;
+    background: rgba(30, 41, 59, 0.9);
+    transform: scale(1.04);
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.35);
+}
+
+.overlay-btn-group {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Pause Card */
+.pause-card {
+    background: rgba(15, 23, 42, 0.85);
+    border: 2px solid rgba(56, 189, 248, 0.4);
+    border-radius: 16px;
+    padding: 30px 48px;
+    text-align: center;
+    box-shadow: 0 0 45px rgba(56, 189, 248, 0.25);
+    max-width: 520px;
+}
+
+.pause-title {
+    font-size: 42px;
+    letter-spacing: 6px;
+    color: #38bdf8;
+    text-shadow: 0 0 25px rgba(56, 189, 248, 0.6);
+    margin-bottom: 6px;
+}
+
+.pause-subtitle {
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: #64748b;
+    margin-bottom: 18px;
+    text-transform: uppercase;
+}
+
+/* Game Over Card */
+.stats-card {
+    background: rgba(15, 23, 42, 0.88);
+    border: 2px solid rgba(239, 68, 68, 0.6);
+    padding: 20px 36px;
+    border-radius: 16px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.3), inset 0 0 20px rgba(239, 68, 68, 0.08);
+    min-width: 480px;
+}
+
+.gameover-ship-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.gameover-ship-img {
+    width: 110px;
+    height: auto;
+    animation: wreckageSmoke 2.5s ease-in-out infinite;
+}
+
+.gameover-title {
+    font-size: 32px;
+    letter-spacing: 5px;
+    color: #ef4444;
+    text-shadow: 0 0 25px rgba(239, 68, 68, 0.7);
+    margin: 6px 0 2px 0;
+    font-weight: 900;
 }
 
 .rank-badge {
-    font-size: 38px;
+    font-size: 32px;
     font-weight: 900;
-    letter-spacing: 3px;
-    margin: 12px 0;
+    letter-spacing: 4px;
+    margin: 4px 0 14px 0;
+    text-shadow: 0 0 20px currentColor;
 }
 
 .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    font-size: 16px;
-    color: #cbd5e1;
-    margin-top: 14px;
-    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(3, 7, 18, 0.65);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    padding: 12px 20px;
+    border-radius: 10px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+
+.stat-label {
+    color: #94a3b8;
+    letter-spacing: 1px;
 }
 
 .stats-val {
     font-weight: bold;
+    font-family: monospace;
+    font-size: 16px;
     color: #38bdf8;
-    text-align: right;
+    text-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
 }

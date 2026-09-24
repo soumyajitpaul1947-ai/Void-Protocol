@@ -571,6 +571,7 @@ class Boss {
         this.stateTimer = 0;
         this.currentFrame = 0;
         this.animTimer = 0;
+        this.hitFlashTimer = 0;
         sounds.play('boss_spawn', 0.8);
     }
 
@@ -579,6 +580,10 @@ class Boss {
         if (this.animTimer > 0.06) {
             this.animTimer = 0;
             this.currentFrame = (this.currentFrame + 1) % 78;
+        }
+
+        if (this.hitFlashTimer > 0) {
+            this.hitFlashTimer -= dt;
         }
 
         this.stateTimer += dt;
@@ -617,6 +622,39 @@ class Boss {
         return this.x <= canvas.width - 60 && this.x >= -this.width;
     }
 
+    // Precise physical hull hit detection so bullets hit the boss directly
+    checkBulletHit(b) {
+        const bx = b.x + b.width;
+        const by = b.y + b.height / 2;
+
+        const cx = this.x + this.width / 2;
+        const cy = this.y + this.height / 2;
+
+        // Bounding circle reject
+        const distCenter = Math.hypot(bx - cx, by - cy);
+        if (distCenter > 115) return false;
+
+        // Relative coordinates from boss center (boss faces left, so dx < 0 is towards the head/eyes)
+        const dx = bx - cx;
+        const dy = by - cy;
+
+        // 1. Head dome / Eyes: front protruding sphere (cx - 35, cy, radius 52)
+        // Reaches to cx - 87, matching the tip of the mandibles and glowing eyes
+        if (Math.hypot(bx - (cx - 35), by - cy) <= 52) {
+            return true;
+        }
+
+        // 2. Wings & Armored Carapace (swept-back front profile)
+        if (Math.abs(dy) <= 96 && dx >= -52 && dx <= 80) {
+            const sweptX = -45 + (Math.abs(dy) / 96) * 45;
+            if (dx >= sweptX) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     draw() {
         const frame = getBossFrame(this.currentFrame);
         const cx = this.x + this.width / 2;
@@ -637,10 +675,15 @@ class Boss {
             ctx.translate(cx, cy);
             ctx.rotate(Math.PI / 2 + bankAngle);
 
+            if (this.hitFlashTimer > 0) {
+                ctx.filter = 'brightness(2.2) contrast(1.2)';
+            }
+
             if (frame && frame.complete && frame.naturalWidth > 0) {
                 ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
             }
         } finally {
+            ctx.filter = 'none';
             ctx.restore();
         }
     }
@@ -874,11 +917,14 @@ function update(dt) {
         if (activeBoss.isOnScreen()) {
             for (let j = bullets.length - 1; j >= 0; j--) {
                 const b = bullets[j];
-                if (checkCollision(b, activeBoss)) {
+                if (activeBoss.checkBulletHit(b)) {
+                    const hitX = b.x + b.width;
+                    const hitY = b.y + b.height / 2;
                     bullets.splice(j, 1);
                     activeBoss.hp -= 1;
+                    activeBoss.hitFlashTimer = 0.08;
                     sounds.play('hit_armor', 0.45);
-                    explosions.push(new Explosion(b.x, b.y, 40));
+                    explosions.push(new Explosion(hitX, hitY, 36));
                     score += 50;
 
                     if (activeBoss.hp <= 0) {
@@ -897,15 +943,13 @@ function update(dt) {
             }
         }
 
-        // Player colliding directly with Boss (Physical contact check)
+        // Player colliding directly with Boss (Physical hull contact check)
         if (activeBoss) {
-            const bossHitbox = {
-                x: activeBoss.x + 20,
-                y: activeBoss.y + 20,
-                width: activeBoss.width - 40,
-                height: activeBoss.height - 40
-            };
-            if (checkCollision(player, bossHitbox)) {
+            const cx = activeBoss.x + activeBoss.width / 2;
+            const cy = activeBoss.y + activeBoss.height / 2;
+            const px = player.x + player.width / 2;
+            const py = player.y + player.height / 2;
+            if (Math.hypot(px - cx, py - cy) < 125) {
                 if (!player.isInvulnerable) {
                     player.takeDamage(2); // Boss collision deals 2 damage in Void Protocol!
                     player.x = Math.max(30, player.x - 90); // Hull knockback
@@ -1207,6 +1251,26 @@ document.getElementById('restart-btn').addEventListener('click', () => {
     gameState = 'PLAYING';
     document.getElementById('gameover-overlay').classList.add('hidden');
 });
+
+const titleBtn = document.getElementById('title-btn');
+if (titleBtn) {
+    titleBtn.addEventListener('click', () => {
+        resetGame();
+        gameState = 'START';
+        document.getElementById('gameover-overlay').classList.add('hidden');
+        document.getElementById('start-overlay').classList.remove('hidden');
+    });
+}
+
+const pauseTitleBtn = document.getElementById('pause-title-btn');
+if (pauseTitleBtn) {
+    pauseTitleBtn.addEventListener('click', () => {
+        resetGame();
+        gameState = 'START';
+        document.getElementById('pause-overlay').classList.add('hidden');
+        document.getElementById('start-overlay').classList.remove('hidden');
+    });
+}
 
 // Immortal Animation Loop: requestAnimationFrame scheduled FIRST and wrapped in try-catch
 let lastTime = performance.now();
