@@ -57,6 +57,11 @@ class SoundManager {
                 this.loadAudio('hit', 'assets/audio/61_Hit_03.wav');
                 this.loadAudio('buff', 'assets/audio/39_Block_03.wav');
                 this.loadAudio('boss_spawn', 'assets/audio/Boss_Spawn.mp3');
+                this.loadAudio('boss_charge', 'assets/audio/Swipe.mp3');
+                this.loadAudio('boost', 'assets/audio/46_Poison_01.wav');
+                this.loadAudio('hit_armor', 'assets/audio/03_Step_grass_03.wav');
+                this.loadAudio('squish', 'assets/audio/77_flesh_02.wav');
+                this.loadAudio('burn', 'assets/audio/51_Flee_02.wav');
                 this.loadAudio('pause', 'assets/audio/092_Pause_04.wav');
                 this.loadAudio('unpause', 'assets/audio/098_Unpause_04.wav');
                 this.loadMusic('assets/audio/JDSherbert - Nostalgia Music Pack - Gameboy & A Long Car Journey.mp3');
@@ -261,6 +266,9 @@ class Player {
         // Boost handling
         const boostKey = keys['Space'] || isRightMouseDown || keys['KeyE'];
         if (boostKey && this.energy > 0) {
+            if (!this.isBoosting) {
+                sounds.play('boost', 0.65);
+            }
             this.isBoosting = true;
             this.energy = Math.max(0, this.energy - 38 * dt);
             const drawW = Math.round(this.width * 1.88);
@@ -417,8 +425,7 @@ class Player {
             } else if (keys['KeyA'] || keys['ArrowLeft']) {
                 frame = images['player_6'] || images['player_0']; // Bank Left / Decel
             } else {
-                // Subtle engine idle flame flicker
-                frame = Math.floor(Date.now() / 120) % 2 === 0 ? images['player_0'] : images['player_1'];
+                frame = images['player_0']; // Rock-solid idle flight matching Unity Player_Right
             }
 
             if (frame) {
@@ -462,7 +469,15 @@ class Bullet {
     draw() {
         const img = images['bullet'];
         if (img) {
-            ctx.drawImage(img, this.x, this.y, this.width, this.height);
+            if (this.vy !== 0) {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.rotate(Math.atan2(this.vy, this.vx));
+                ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.restore();
+            } else {
+                ctx.drawImage(img, this.x, this.y, this.width, this.height);
+            }
         }
     }
 }
@@ -494,9 +509,9 @@ class Critter {
         }
     }
 
-    // IsOnScreen check (from session bdb70fc3): cannot be damaged before entering screen!
+    // IsOnScreen check: must be visibly on screen before being damaged!
     isOnScreen() {
-        return this.x <= canvas.width - 20 && this.x >= -this.width;
+        return this.x <= canvas.width - this.width + 10 && this.x >= -this.width;
     }
 
     draw() {
@@ -532,18 +547,19 @@ class Boss {
         this.name = tier === 1 ? 'TITAN DREADNOUGHT' : (tier === 2 ? 'VOID OVERLORD' : 'APEX LEVIATHAN');
         this.width = 240;
         this.height = 200;
-        this.x = canvas.width + 100;
+        this.x = canvas.width + 40;
         this.y = canvas.height / 2 - this.height / 2;
         this.targetY = canvas.height / 2;
 
-        // Base health per tier
-        const baseHp = tier === 1 ? 50 : (tier === 2 ? 85 : 140);
-        // Scaling with Time, Distance, and Completed Cycles (From GameManager.cs)
+        // Base health per tier (balanced: -20 HP decrease as requested for fair battle)
+        const baseHp = tier === 1 ? 30 : (tier === 2 ? 65 : 110);
+        // Scaling with Time, Distance, and Completed Cycles
         const healthMult = 1.0 + (survivalTime / 90) * 0.25 + (distance / 3000) * 0.20 + bossCycleCount * 0.35;
         this.maxHp = Math.round(baseHp * healthMult);
         this.hp = this.maxHp;
 
-        this.speed = (tier === 1 ? 260 : (tier === 2 ? 330 : 410)) * Math.min(1.4, 1.0 + bossCycleCount * 0.1);
+        // Escapable boss speed
+        this.speed = (tier === 1 ? 210 : (tier === 2 ? 270 : 340)) * Math.min(1.35, 1.0 + bossCycleCount * 0.08);
         this.state = 'ENTER'; // 'ENTER', 'HOVER', 'CHARGE'
         this.stateTimer = 0;
         this.currentFrame = 0;
@@ -567,20 +583,21 @@ class Boss {
                 this.stateTimer = 0;
             }
         } else if (this.state === 'HOVER') {
-            // Track player ship altitude
+            // Track player ship altitude smoothly
             if (player) {
                 const diff = (player.y - this.y);
-                this.y += Math.sign(diff) * Math.min(Math.abs(diff), 160 * dt);
+                this.y += Math.sign(diff) * Math.min(Math.abs(diff), 130 * dt);
             }
-            if (this.stateTimer > (this.tier === 1 ? 4 : 2.5)) {
+            if (this.stateTimer > (this.tier === 1 ? 3.8 : 2.6)) {
                 this.state = 'CHARGE';
                 this.stateTimer = 0;
+                sounds.play('boss_charge', 0.85); // Menacing charging sound from Swipe.mp3
             }
         } else if (this.state === 'CHARGE') {
-            this.x -= this.speed * 1.8 * dt;
+            this.x -= this.speed * 1.45 * dt; // Escapable charge allowing dodging
             if (this.x < -this.width - 60) {
-                // Loop back for re-entry (from session 8e3e9515)
-                this.x = canvas.width + 80;
+                // Loop back for re-entry
+                this.x = canvas.width + 40;
                 this.y = 80 + Math.random() * (canvas.height - 240);
                 this.state = 'ENTER';
                 this.stateTimer = 0;
@@ -588,9 +605,9 @@ class Boss {
         }
     }
 
-    // IsOnScreen check (from session bdb70fc3): cannot be damaged before entering screen!
+    // IsOnScreen check: Boss must be visibly well on screen before taking damage
     isOnScreen() {
-        return this.x <= canvas.width - 20;
+        return this.x <= canvas.width - 60 && this.x >= -this.width;
     }
 
     draw() {
@@ -746,8 +763,9 @@ function updateSpawners(dt) {
 function update(dt) {
     if (gameState !== 'PLAYING') return;
 
+    const currentWorldSpeed = player.isBoosting ? worldSpeed * 2.8 : worldSpeed;
     survivalTime += dt;
-    distance += worldSpeed * dt * 0.8;
+    distance += currentWorldSpeed * dt * 0.8;
 
     if (comboTimer > 0) {
         comboTimer -= dt;
@@ -756,7 +774,7 @@ function update(dt) {
 
     // Parallax scrolling
     for (let i = 0; i < 4; i++) {
-        bgOffsets[i] = (bgOffsets[i] + worldSpeed * bgSpeeds[i] * dt) % canvas.width;
+        bgOffsets[i] = (bgOffsets[i] + currentWorldSpeed * bgSpeeds[i] * dt) % canvas.width;
     }
 
     // Boost particles
@@ -813,7 +831,8 @@ function update(dt) {
         }
 
         if (critterDead) {
-            sounds.play('explode', 0.45);
+            sounds.play(player.isBoosting ? 'burn' : 'squish', 0.55);
+            sounds.play('explode', 0.4);
             explosions.push(new Explosion(c.x + c.width / 2, c.y + c.height / 2, 80));
             killsCount++;
             combo++;
@@ -846,7 +865,7 @@ function update(dt) {
                 if (checkCollision(b, activeBoss)) {
                     bullets.splice(j, 1);
                     activeBoss.hp -= 1;
-                    sounds.play('hit', 0.35);
+                    sounds.play('hit_armor', 0.45);
                     explosions.push(new Explosion(b.x, b.y, 40));
                     score += 50;
 
@@ -1076,7 +1095,7 @@ function drawHUD() {
     }
 
     // Bottom HUD: Single-Line Boss Health Bar (From session bdb70fc3)
-    if (activeBoss) {
+    if (activeBoss && activeBoss.x < canvas.width) {
         const barW = 540;
         const barH = 20;
         const barX = canvas.width / 2 - barW / 2;
