@@ -65,9 +65,11 @@ Void-Protocol/
 
 ## 🚀 How to Play / Build
 
-### Prerequisites
-- [Unity 6](https://unity.com/download) (Recommended: `6000.5.9f1` or later)
-- Universal Render Pipeline (URP 2D)
+### ⚡ Instant Standalone Play (No Unity Required)
+You can play **Void Protocol** immediately on your Windows PC:
+1. Simply double-click **`Play_Void_Protocol.bat`** in this folder.
+2. The game will automatically launch in your web browser at 60 FPS with full authentic sound effects, sliced sprite animations, 3-tier boss battles, and keyboard/mouse controls!
+   *(Alternatively, open the `Playable_Game/` folder and double-click `Play.bat`)*
 
 ### Play in Unity Editor
 1. Clone or download this repository:

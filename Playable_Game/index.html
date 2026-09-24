@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Void Protocol - Playable Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+        <!-- Start Screen Overlay -->
+        <div id="start-overlay" class="overlay">
+            <div class="title-container">
+                <h1 class="game-title">VOID PROTOCOL</h1>
+                <p class="game-subtitle">Endless Space Survival Marathon</p>
+            </div>
+
+            <div class="controls-guide">
+                <div class="control-item">
+                    <span>Move Ship:</span>
+                    <span class="key">W A S D / Arrows</span>
+                </div>
+                <div class="control-item">
+                    <span>Phaser Cannon:</span>
+                    <span class="key">Left Click / Shift</span>
+                </div>
+                <div class="control-item">
+                    <span>Speed Boost / Ram:</span>
+                    <span class="key">Right Click / Space</span>
+                </div>
+                <div class="control-item">
+                    <span>Pause Game:</span>
+                    <span class="key">ESC / P</span>
+                </div>
+            </div>
+
+            <button id="start-btn" class="btn-primary">LAUNCH MISSION</button>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div id="pause-overlay" class="overlay hidden">
+            <h2 style="font-size: 48px; letter-spacing: 6px; margin-bottom: 20px; color: #38bdf8;">MISSION PAUSED</h2>
+            <p style="color: #94a3b8; margin-bottom: 30px; font-size: 18px;">Press <b>ESC</b> or <b>P</b> to resume</p>
+            <button id="resume-btn" class="btn-primary">RESUME</button>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div id="gameover-overlay" class="overlay hidden">
+            <div id="gameover-card" class="stats-card">
+                <h2 style="font-size: 36px; letter-spacing: 4px; color: #ef4444; margin-bottom: 8px;">SHIP DESTROYED</h2>
+                <div id="final-rank" class="rank-badge" style="color: #38bdf8;">RANK A</div>
+                
+                <div class="stats-grid">
+                    <span>SURVIVAL TIME:</span>
+                    <span id="final-time" class="stats-val">00:00</span>
+                    <span>DISTANCE TRAVELED:</span>
+                    <span id="final-dist" class="stats-val">0 KM</span>
+                    <span>TOTAL SCORE:</span>
+                    <span id="final-score" class="stats-val">0</span>
+                    <span>ENEMIES DEFEATED:</span>
+                    <span id="final-kills" class="stats-val">0</span>
+                </div>
+            </div>
+
+            <button id="restart-btn" class="btn-primary">REDEPLOY SHIP</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
