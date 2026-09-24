@@ -19,10 +19,8 @@ body {
 
 #game-container {
     position: relative;
-    width: 100vw;
-    height: 100vh;
-    max-width: calc(100vh * 16 / 9);
-    max-height: calc(100vw * 9 / 16);
+    width: min(100vw, calc(100vh * 16 / 9));
+    height: min(100vh, calc(100vw * 9 / 16));
     aspect-ratio: 16 / 9;
     box-shadow: 0 0 50px rgba(56, 189, 248, 0.25), 0 0 20px rgba(0, 0, 0, 0.8);
     border: 2px solid rgba(56, 189, 248, 0.4);

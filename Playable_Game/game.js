@@ -162,11 +162,9 @@ function preloadAllAssets() {
             };
             img.onerror = () => {
                 console.warn('Asset fallback initialized for:', item.src);
-                images[item.name] = img;
-                resolve(img);
+                resolve(null);
             };
             img.src = item.src;
-            images[item.name] = img;
         });
     })).then(() => {
         assetsLoaded = true;
@@ -398,56 +396,58 @@ class Player {
         }
 
         ctx.save();
-        if (this.pulseScale > 1.0) {
-            ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
-            ctx.scale(this.pulseScale, this.pulseScale);
-            ctx.translate(-(this.x + this.width / 2), -(this.y + this.height / 2));
-        }
-
-        if (this.isBoosting) {
-            // Render full boost sprite (player_sprite_9, width 188 with exhaust flame)
-            // In Unity, player_sprite_0 is 100x100 and player_sprite_9 is 188x100.
-            // Both share right-edge pivot (x:1, y:0.5) so nose stays perfectly fixed!
-            const boostImg = images['player_boost'] || images['player_0'];
-            if (boostImg) {
-                const drawW = Math.round(this.width * 1.88); // 179 px
-                const drawH = this.height;                   // 70 px
-                const drawX = this.x + this.width - drawW;   // Cockpit and nose stay perfectly fixed!
-                ctx.drawImage(boostImg, drawX, this.y, drawW, drawH);
+        try {
+            if (this.pulseScale > 1.0) {
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.scale(this.pulseScale, this.pulseScale);
+                ctx.translate(-(this.x + this.width / 2), -(this.y + this.height / 2));
             }
-        } else {
-            // Select directional animation frame
-            let frame = images['player_0'];
-            if (keys['KeyW'] || keys['ArrowUp']) {
-                frame = images['player_3'] || images['player_0']; // Bank Up
-            } else if (keys['KeyS'] || keys['ArrowDown']) {
-                frame = images['player_2'] || images['player_0']; // Bank Down
-            } else if (keys['KeyA'] || keys['ArrowLeft']) {
-                frame = images['player_6'] || images['player_0']; // Bank Left / Decel
+
+            if (this.isBoosting) {
+                // Render full boost sprite (player_sprite_9, width 188 with exhaust flame)
+                // In Unity, player_sprite_0 is 100x100 and player_sprite_9 is 188x100.
+                // Both share right-edge pivot (x:1, y:0.5) so nose stays perfectly fixed!
+                const boostImg = images['player_boost'] || images['player_0'];
+                if (boostImg && boostImg.complete && boostImg.naturalWidth > 0) {
+                    const drawW = Math.round(this.width * 1.88); // 179 px
+                    const drawH = this.height;                   // 70 px
+                    const drawX = this.x + this.width - drawW;   // Cockpit and nose stay perfectly fixed!
+                    ctx.drawImage(boostImg, drawX, this.y, drawW, drawH);
+                }
             } else {
-                frame = images['player_0']; // Rock-solid idle flight matching Unity Player_Right
+                // Select directional animation frame
+                let frame = images['player_0'];
+                if (keys['KeyW'] || keys['ArrowUp']) {
+                    frame = images['player_3'] || images['player_0']; // Bank Up
+                } else if (keys['KeyS'] || keys['ArrowDown']) {
+                    frame = images['player_2'] || images['player_0']; // Bank Down
+                } else if (keys['KeyA'] || keys['ArrowLeft']) {
+                    frame = images['player_6'] || images['player_0']; // Bank Left / Decel
+                } else {
+                    frame = images['player_0']; // Rock-solid idle flight matching Unity Player_Right
+                }
+
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    ctx.drawImage(frame, this.x, this.y, this.width, this.height);
+                }
             }
 
-            if (frame) {
-                ctx.drawImage(frame, this.x, this.y, this.width, this.height);
+            // Super Shield Forcefield Visual
+            if (this.superShieldTimer > 0) {
+                ctx.beginPath();
+                ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 54, 0, Math.PI * 2);
+                ctx.strokeStyle = this.superShieldTimer <= 2 ? '#fde047' : '#a855f7';
+                ctx.lineWidth = 3.5;
+                ctx.shadowColor = '#a855f7';
+                ctx.shadowBlur = 16;
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
+                ctx.fill();
             }
+        } finally {
+            ctx.restore();
         }
-
-        // Super Shield Forcefield Visual
-        if (this.superShieldTimer > 0) {
-            ctx.beginPath();
-            ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 54, 0, Math.PI * 2);
-            ctx.strokeStyle = this.superShieldTimer <= 2 ? '#fde047' : '#a855f7';
-            ctx.lineWidth = 3.5;
-            ctx.shadowColor = '#a855f7';
-            ctx.shadowBlur = 16;
-            ctx.stroke();
-
-            ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
-            ctx.fill();
-        }
-
-        ctx.restore();
     }
 }
 
@@ -468,13 +468,16 @@ class Bullet {
 
     draw() {
         const img = images['bullet'];
-        if (img) {
+        if (img && img.complete && img.naturalWidth > 0) {
             if (this.vy !== 0) {
                 ctx.save();
-                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
-                ctx.rotate(Math.atan2(this.vy, this.vx));
-                ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
-                ctx.restore();
+                try {
+                    ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                    ctx.rotate(Math.atan2(this.vy, this.vx));
+                    ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
+                } finally {
+                    ctx.restore();
+                }
             } else {
                 ctx.drawImage(img, this.x, this.y, this.width, this.height);
             }
@@ -522,21 +525,25 @@ class Critter {
         const targetY = player ? player.y + player.height / 2 : cy;
 
         // Small enemies face towards the starship
-        // In the raw sprite critter1_sprite_0, the head points UP (-Y in screen space)
-        // We clamp dx <= -20 so it consistently faces forward-left towards the player
+        // In raw sprite critter1_sprite_0.png, eyes point UP (-Y in screen space)
+        // Rotating by -PI/2 points head towards LEFT (-X)
         const dx = Math.min(-20, targetX - cx);
         const dy = targetY - cy;
-        const bankAngle = Math.max(-0.6, Math.min(0.6, Math.atan2(dy, -dx)));
+        const targetAngle = Math.atan2(dy, dx);
+        let bankAngle = targetAngle > 0 ? (targetAngle - Math.PI) : (targetAngle + Math.PI);
+        bankAngle = Math.max(-0.35, Math.min(0.35, bankAngle));
 
         ctx.save();
-        ctx.translate(cx, cy);
-        // Base facing LEFT (-PI/2 from UP-pointing sprite) + banking tilt towards player
-        ctx.rotate(-Math.PI / 2 + bankAngle);
+        try {
+            ctx.translate(cx, cy);
+            ctx.rotate(-Math.PI / 2 + bankAngle);
 
-        if (frame) {
-            ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
+            if (frame && frame.complete && frame.naturalWidth > 0) {
+                ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
+            }
+        } finally {
+            ctx.restore();
         }
-        ctx.restore();
     }
 }
 
@@ -617,23 +624,25 @@ class Boss {
         const targetX = player ? player.x + player.width / 2 : 0;
         const targetY = player ? player.y + player.height / 2 : cy;
 
-        // In boss1_0.png, the nose points UP (-Y in screen space)
-        // Orient menacingly towards player starship on left (-X)
-        // Clamp dx so during charges or passes it always faces left
-        const dx = Math.min(-40, targetX - cx);
+        // In raw sprite boss1_0.png, head/eyes/mandibles are at the BOTTOM (+Y in image space)
+        // Rotating by +PI/2 (+90 deg clockwise) points head directly towards player ship on the left (-X)
+        const dx = Math.min(-30, targetX - cx);
         const dy = targetY - cy;
-        // Clamp banking tilt to +/- 25 degrees (+/- 0.44 radians)
-        const bankAngle = Math.max(-0.44, Math.min(0.44, Math.atan2(dy, -dx)));
+        const targetAngle = Math.atan2(dy, dx);
+        let bankAngle = targetAngle > 0 ? (targetAngle - Math.PI) : (targetAngle + Math.PI);
+        bankAngle = Math.max(-0.30, Math.min(0.30, bankAngle));
 
         ctx.save();
-        ctx.translate(cx, cy);
-        // Base facing LEFT (-PI/2 from UP-pointing nose) + subtle menacing banking tilt
-        ctx.rotate(-Math.PI / 2 + bankAngle);
+        try {
+            ctx.translate(cx, cy);
+            ctx.rotate(Math.PI / 2 + bankAngle);
 
-        if (frame) {
-            ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
+            if (frame && frame.complete && frame.naturalWidth > 0) {
+                ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
+            }
+        } finally {
+            ctx.restore();
         }
-        ctx.restore();
     }
 }
 
@@ -658,7 +667,7 @@ class Explosion {
 
     draw() {
         const img = getBoomFrame(this.frame);
-        if (img) {
+        if (img && img.complete && img.naturalWidth > 0) {
             ctx.drawImage(img, this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
         }
     }
@@ -682,27 +691,30 @@ class PowerUpItem {
 
     draw() {
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        try {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
 
-        let color = '#38bdf8';
-        let label = '2';
-        if (this.type === 'HEAL') { color = '#4ade80'; label = '+'; }
-        else if (this.type === 'TRIPLE_SHOT') { color = '#fb923c'; label = '3'; }
-        else if (this.type === 'RAPID_FIRE') { color = '#fde047'; label = 'R'; }
-        else if (this.type === 'SHIELD') { color = '#a855f7'; label = 'S'; }
+            let color = '#38bdf8';
+            let label = '2';
+            if (this.type === 'HEAL') { color = '#4ade80'; label = '+'; }
+            else if (this.type === 'TRIPLE_SHOT') { color = '#fb923c'; label = '3'; }
+            else if (this.type === 'RAPID_FIRE') { color = '#fde047'; label = 'R'; }
+            else if (this.type === 'SHIELD') { color = '#a855f7'; label = 'S'; }
 
-        ctx.fillStyle = color;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 12;
-        ctx.fill();
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 12;
+            ctx.fill();
 
-        ctx.fillStyle = '#030712';
-        ctx.font = 'bold 15px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, this.x, this.y);
-        ctx.restore();
+            ctx.fillStyle = '#030712';
+            ctx.font = 'bold 15px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, this.x, this.y);
+        } finally {
+            ctx.restore();
+        }
     }
 }
 
@@ -948,6 +960,8 @@ function checkCircleBoxCollision(c, b) {
 
 // --- Render Loop ---
 function draw() {
+    // Guaranteed transform reset to identity every single frame
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // 1. Parallax Backgrounds
@@ -963,14 +977,17 @@ function draw() {
     // 2. Boost Particles
     for (const bp of boostParticles) {
         ctx.save();
-        ctx.globalAlpha = bp.alpha;
-        ctx.fillStyle = bp.color;
-        ctx.shadowColor = bp.color;
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.arc(bp.x, bp.y, bp.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        try {
+            ctx.globalAlpha = bp.alpha;
+            ctx.fillStyle = bp.color;
+            ctx.shadowColor = bp.color;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(bp.x, bp.y, bp.size, 0, Math.PI * 2);
+            ctx.fill();
+        } finally {
+            ctx.restore();
+        }
     }
 
     // 3. Power-Ups
@@ -994,13 +1011,17 @@ function draw() {
     // 9. Floating Texts
     for (const ft of floatingTexts) {
         ctx.save();
-        ctx.globalAlpha = ft.alpha;
-        ctx.fillStyle = ft.color;
-        ctx.font = 'bold 18px sans-serif';
-        ctx.shadowColor = ft.color;
-        ctx.shadowBlur = 8;
-        ctx.fillText(ft.text, ft.x, ft.y);
-        ctx.restore();
+        try {
+            ctx.globalAlpha = ft.alpha;
+            ctx.fillStyle = ft.color;
+            ctx.font = 'bold 18px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = ft.color;
+            ctx.shadowBlur = 8;
+            ctx.fillText(ft.text, ft.x, ft.y);
+        } finally {
+            ctx.restore();
+        }
     }
 
     // 10. HUD Overlays (Using universal polyfilled round rectangles)
