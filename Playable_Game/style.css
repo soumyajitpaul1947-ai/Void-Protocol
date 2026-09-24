@@ -122,9 +122,16 @@ canvas#gameCanvas {
     transition: all 0.2s ease;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     transform: scale(1.05);
     box-shadow: 0 0 30px rgba(56, 189, 248, 0.7);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: wait;
+    transform: none;
+    box-shadow: none;
 }
 
 /* Game Over Card */

@@ -119,44 +119,67 @@ class SoundManager {
 
 const sounds = new SoundManager();
 
-// --- Image Assets Loader ---
+// --- Image Assets Loader with Async Preloader ---
 const images = {};
-function loadImage(name, src) {
-    const img = new Image();
-    img.src = src;
-    images[name] = img;
-    return img;
+const assetManifest = [
+    { name: 'bg1', src: 'assets/art/layer1.png' },
+    { name: 'bg2', src: 'assets/art/layer2.png' },
+    { name: 'bg3', src: 'assets/art/layer3.png' },
+    { name: 'bg4', src: 'assets/art/layer4.png' },
+    { name: 'bullet', src: 'assets/art/bullet1.png' },
+    { name: 'player_gameover', src: 'assets/art/player_game_over.png' },
+    { name: 'player_0', src: 'assets/sprites/player_sprite_0.png' },
+    { name: 'player_1', src: 'assets/sprites/player_sprite_1.png' },
+    { name: 'player_2', src: 'assets/sprites/player_sprite_2.png' },
+    { name: 'player_3', src: 'assets/sprites/player_sprite_3.png' },
+    { name: 'player_6', src: 'assets/sprites/player_sprite_6.png' },
+    { name: 'player_boost', src: 'assets/sprites/player_sprite_9.png' }
+];
+
+for (let i = 0; i < 4; i++) {
+    assetManifest.push({ name: `critter_${i}`, src: `assets/sprites/critter1_sprite_${i}.png` });
+}
+for (let i = 0; i < 21; i++) {
+    assetManifest.push({ name: `boom_${i}`, src: `assets/sprites/boom2_${i}.png` });
+}
+for (let i = 0; i < 78; i++) {
+    assetManifest.push({ name: `boss_${i}`, src: `assets/sprites/boss1_${i}.png` });
 }
 
-// Backgrounds
-loadImage('bg1', 'assets/art/layer1.png');
-loadImage('bg2', 'assets/art/layer2.png');
-loadImage('bg3', 'assets/art/layer3.png');
-loadImage('bg4', 'assets/art/layer4.png');
+let assetsLoaded = false;
+function preloadAllAssets() {
+    return Promise.all(assetManifest.map(item => {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                images[item.name] = img;
+                resolve(img);
+            };
+            img.onerror = () => {
+                console.warn('Asset fallback initialized for:', item.src);
+                images[item.name] = img;
+                resolve(img);
+            };
+            img.src = item.src;
+            images[item.name] = img;
+        });
+    })).then(() => {
+        assetsLoaded = true;
+        console.log('All 115 Void Protocol visual assets loaded and decoded.');
+    });
+}
 
-// Bullet & GameOver
-loadImage('bullet', 'assets/art/bullet1.png');
-loadImage('player_gameover', 'assets/art/player_game_over.png');
+function getCritterFrame(index) {
+    return images[`critter_${index % 4}`] || images['critter_0'];
+}
 
-// Sliced Player Sprites (Mapped to Unity Clips)
-loadImage('player_0', 'assets/sprites/player_sprite_0.png');     // Idle / Straight
-loadImage('player_1', 'assets/sprites/player_sprite_1.png');     // Thruster flicker
-loadImage('player_2', 'assets/sprites/player_sprite_2.png');     // Bank Down
-loadImage('player_3', 'assets/sprites/player_sprite_3.png');     // Bank Up
-loadImage('player_6', 'assets/sprites/player_sprite_6.png');     // Bank Left / Decel
-loadImage('player_boost', 'assets/sprites/player_sprite_9.png'); // Full Boost Flame
+function getBossFrame(index) {
+    return images[`boss_${index % 78}`] || images['boss_0'];
+}
 
-// Critter Frames
-const critterFrames = [];
-for (let i = 0; i < 4; i++) critterFrames.push(loadImage(`critter_${i}`, `assets/sprites/critter1_sprite_${i}.png`));
-
-// Explosion Frames
-const boomFrames = [];
-for (let i = 0; i < 21; i++) boomFrames.push(loadImage(`boom_${i}`, `assets/sprites/boom2_${i}.png`));
-
-// Boss Frames
-const bossFrames = [];
-for (let i = 0; i < 78; i++) bossFrames.push(loadImage(`boss_${i}`, `assets/sprites/boss1_${i}.png`));
+function getBoomFrame(index) {
+    return images[`boom_${index % 21}`] || images['boom_0'];
+}
 
 // --- Game State & Input ---
 const keys = {};
@@ -194,15 +217,17 @@ const bgSpeeds = [0.15, 0.45, 0.8, 1.4];
 // --- Engine Exhaust Particle System for Boost ---
 const boostParticles = [];
 function addBoostParticle(x, y) {
-    boostParticles.push({
-        x: x + (Math.random() * 8 - 4),
-        y: y + (Math.random() * 12 - 6),
-        vx: -(320 + Math.random() * 260),
-        vy: (Math.random() * 60 - 30),
-        size: 8 + Math.random() * 10,
-        alpha: 0.95,
-        color: Math.random() > 0.4 ? '#38bdf8' : '#f97316'
-    });
+    for (let i = 0; i < 2; i++) {
+        boostParticles.push({
+            x: x + (Math.random() * 6 - 3),
+            y: y + (Math.random() * 10 - 5),
+            vx: -(420 + Math.random() * 320),
+            vy: (Math.random() * 60 - 30),
+            size: 9 + Math.random() * 10,
+            alpha: 0.95,
+            color: Math.random() > 0.35 ? '#38bdf8' : (Math.random() > 0.5 ? '#60a5fa' : '#ffffff')
+        });
+    }
 }
 
 // --- Player Starship ---
@@ -238,7 +263,9 @@ class Player {
         if (boostKey && this.energy > 0) {
             this.isBoosting = true;
             this.energy = Math.max(0, this.energy - 38 * dt);
-            addBoostParticle(this.x - 70, this.y + this.height / 2);
+            const drawW = Math.round(this.width * 1.88);
+            const flameTipX = this.x + this.width - drawW;
+            addBoostParticle(flameTipX, this.y + this.height / 2);
         } else {
             this.isBoosting = false;
             this.energy = Math.min(this.maxEnergy, this.energy + 22 * dt);
@@ -371,14 +398,14 @@ class Player {
 
         if (this.isBoosting) {
             // Render full boost sprite (player_sprite_9, width 188 with exhaust flame)
+            // In Unity, player_sprite_0 is 100x100 and player_sprite_9 is 188x100.
+            // Both share right-edge pivot (x:1, y:0.5) so nose stays perfectly fixed!
             const boostImg = images['player_boost'] || images['player_0'];
-            if (boostImg && boostImg.complete && boostImg.naturalWidth > 0) {
-                const drawW = 178;
-                const drawH = 70;
-                const drawX = this.x - 83; // Preserves front nose alignment with normal ship
+            if (boostImg) {
+                const drawW = Math.round(this.width * 1.88); // 179 px
+                const drawH = this.height;                   // 70 px
+                const drawX = this.x + this.width - drawW;   // Cockpit and nose stay perfectly fixed!
                 ctx.drawImage(boostImg, drawX, this.y, drawW, drawH);
-            } else {
-                this.drawVectorFallback();
             }
         } else {
             // Select directional animation frame
@@ -394,10 +421,8 @@ class Player {
                 frame = Math.floor(Date.now() / 120) % 2 === 0 ? images['player_0'] : images['player_1'];
             }
 
-            if (frame && frame.complete && frame.naturalWidth > 0) {
+            if (frame) {
                 ctx.drawImage(frame, this.x, this.y, this.width, this.height);
-            } else {
-                this.drawVectorFallback();
             }
         }
 
@@ -416,21 +441,6 @@ class Player {
         }
 
         ctx.restore();
-    }
-
-    drawVectorFallback() {
-        // High-tech vector starship fallback guaranteeing visibility in any condition
-        ctx.fillStyle = '#38bdf8';
-        ctx.beginPath();
-        ctx.moveTo(this.x + this.width, this.y + this.height / 2);
-        ctx.lineTo(this.x, this.y + 10);
-        ctx.lineTo(this.x + 20, this.y + this.height / 2);
-        ctx.lineTo(this.x, this.y + this.height - 10);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#0284c7';
-        ctx.lineWidth = 2;
-        ctx.stroke();
     }
 }
 
@@ -451,11 +461,8 @@ class Bullet {
 
     draw() {
         const img = images['bullet'];
-        if (img && img.complete && img.naturalWidth > 0) {
+        if (img) {
             ctx.drawImage(img, this.x, this.y, this.width, this.height);
-        } else {
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
         }
     }
 }
@@ -483,7 +490,7 @@ class Critter {
         this.frameTimer += dt;
         if (this.frameTimer > 0.1) {
             this.frameTimer = 0;
-            this.currentFrame = (this.currentFrame + 1) % critterFrames.length;
+            this.currentFrame = (this.currentFrame + 1) % 4;
         }
     }
 
@@ -493,23 +500,26 @@ class Critter {
     }
 
     draw() {
-        const frame = critterFrames[this.currentFrame] || critterFrames[0];
+        const frame = getCritterFrame(this.currentFrame);
         const cx = this.x + this.width / 2;
         const cy = this.y + this.height / 2;
         const targetX = player ? player.x + player.width / 2 : 0;
         const targetY = player ? player.y + player.height / 2 : cy;
-        // Critter sprite naturally faces UP; rotate so head points at player
-        const angle = Math.atan2(targetY - cy, targetX - cx);
+
+        // Small enemies face towards the starship
+        // In the raw sprite critter1_sprite_0, the head points UP (-Y in screen space)
+        // We clamp dx <= -20 so it consistently faces forward-left towards the player
+        const dx = Math.min(-20, targetX - cx);
+        const dy = targetY - cy;
+        const bankAngle = Math.max(-0.6, Math.min(0.6, Math.atan2(dy, -dx)));
 
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.rotate(angle + Math.PI / 2);
+        // Base facing LEFT (-PI/2 from UP-pointing sprite) + banking tilt towards player
+        ctx.rotate(-Math.PI / 2 + bankAngle);
 
-        if (frame && frame.complete && frame.naturalWidth > 0) {
+        if (frame) {
             ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
-        } else {
-            ctx.fillStyle = '#ef4444';
-            ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
         }
         ctx.restore();
     }
@@ -545,7 +555,7 @@ class Boss {
         this.animTimer += dt;
         if (this.animTimer > 0.06) {
             this.animTimer = 0;
-            this.currentFrame = (this.currentFrame + 1) % bossFrames.length;
+            this.currentFrame = (this.currentFrame + 1) % 78;
         }
 
         this.stateTimer += dt;
@@ -584,23 +594,27 @@ class Boss {
     }
 
     draw() {
-        const frame = bossFrames[this.currentFrame] || bossFrames[0];
+        const frame = getBossFrame(this.currentFrame);
         const cx = this.x + this.width / 2;
         const cy = this.y + this.height / 2;
         const targetX = player ? player.x + player.width / 2 : 0;
         const targetY = player ? player.y + player.height / 2 : cy;
-        // Boss sprite nose points DOWN in raw asset; rotate so heavy nose points directly at starship
-        const angle = Math.atan2(targetY - cy, targetX - cx);
+
+        // In boss1_0.png, the nose points UP (-Y in screen space)
+        // Orient menacingly towards player starship on left (-X)
+        // Clamp dx so during charges or passes it always faces left
+        const dx = Math.min(-40, targetX - cx);
+        const dy = targetY - cy;
+        // Clamp banking tilt to +/- 25 degrees (+/- 0.44 radians)
+        const bankAngle = Math.max(-0.44, Math.min(0.44, Math.atan2(dy, -dx)));
 
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.rotate(angle - Math.PI / 2);
+        // Base facing LEFT (-PI/2 from UP-pointing nose) + subtle menacing banking tilt
+        ctx.rotate(-Math.PI / 2 + bankAngle);
 
-        if (frame && frame.complete && frame.naturalWidth > 0) {
+        if (frame) {
             ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
-        } else {
-            ctx.fillStyle = '#dc2626';
-            ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
         }
         ctx.restore();
     }
@@ -621,13 +635,13 @@ class Explosion {
         if (this.frameTimer > 0.035) {
             this.frameTimer = 0;
             this.frame++;
-            if (this.frame >= boomFrames.length) this.done = true;
+            if (this.frame >= 21) this.done = true;
         }
     }
 
     draw() {
-        const img = boomFrames[this.frame] || boomFrames[0];
-        if (img && img.complete && img.naturalWidth > 0) {
+        const img = getBoomFrame(this.frame);
+        if (img) {
             ctx.drawImage(img, this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
         }
     }
@@ -852,19 +866,18 @@ function update(dt) {
             }
         }
 
-        // Player colliding directly with Boss (Physical contact check from session bdb70fc3)
+        // Player colliding directly with Boss (Physical contact check)
         if (activeBoss) {
-            const pCenterX = player.x + player.width / 2;
-            const pCenterY = player.y + player.height / 2;
-            const bCenterX = activeBoss.x + activeBoss.width / 2;
-            const bCenterY = activeBoss.y + activeBoss.height / 2;
-            const dist = Math.hypot(pCenterX - bCenterX, pCenterY - bCenterY);
-
-            // Distance threshold strictly matching physical hull contact
-            if (dist < (player.width * 0.45 + activeBoss.width * 0.38)) {
+            const bossHitbox = {
+                x: activeBoss.x + 20,
+                y: activeBoss.y + 20,
+                width: activeBoss.width - 40,
+                height: activeBoss.height - 40
+            };
+            if (checkCollision(player, bossHitbox)) {
                 if (!player.isInvulnerable) {
                     player.takeDamage(2); // Boss collision deals 2 damage in Void Protocol!
-                    player.x = Math.max(30, player.x - 70); // Hull knockback
+                    player.x = Math.max(30, player.x - 90); // Hull knockback
                 }
             }
         }
@@ -1124,11 +1137,25 @@ function togglePause() {
 }
 
 // UI Event Handlers
-document.getElementById('start-btn').addEventListener('click', () => {
-    sounds.init();
-    resetGame();
-    gameState = 'PLAYING';
-    document.getElementById('start-overlay').classList.add('hidden');
+const startBtn = document.getElementById('start-btn');
+if (startBtn) {
+    startBtn.disabled = true;
+    startBtn.innerText = 'INITIALIZING SYSTEMS...';
+
+    startBtn.addEventListener('click', () => {
+        sounds.init();
+        resetGame();
+        gameState = 'PLAYING';
+        document.getElementById('start-overlay').classList.add('hidden');
+    });
+}
+
+// Start preloading all visual assets immediately
+preloadAllAssets().then(() => {
+    if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.innerText = 'LAUNCH MISSION';
+    }
 });
 
 document.getElementById('resume-btn').addEventListener('click', () => {
