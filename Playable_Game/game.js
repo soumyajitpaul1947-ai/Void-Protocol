@@ -1,10 +1,38 @@
 // ============================================================================
-// VOID PROTOCOL - Full Standalone HTML5 Game Engine
-// Faithful recreation of Unity 6 Mechanics, Assets, and Progression
+// VOID PROTOCOL - Full Standalone Game Engine
+// Authentic implementation of Void Protocol (Endless Marathon, Scaling Bosses)
 // ============================================================================
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
+// --- Universal Round Rect Polyfill for Canvas ---
+// Guarantees compatibility on all Windows WebView2 and browser runtimes
+function roundRectPath(ctx, x, y, w, h, r) {
+    if (r > w / 2) r = w / 2;
+    if (r > h / 2) r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+}
+
+function fillRoundRect(ctx, x, y, w, h, r) {
+    roundRectPath(ctx, x, y, w, h, r);
+    ctx.fill();
+}
+
+function strokeRoundRect(ctx, x, y, w, h, r) {
+    roundRectPath(ctx, x, y, w, h, r);
+    ctx.stroke();
+}
 
 // --- Audio Controller using Web Audio API ---
 class SoundManager {
@@ -18,31 +46,37 @@ class SoundManager {
 
     init() {
         if (this.initialized) return;
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
-        this.initialized = true;
-        this.loadAudio('shoot', 'assets/audio/12_Step_wood_03.wav');
-        this.loadAudio('explode', 'assets/audio/04_Fire_explosion_04_medium.wav');
-        this.loadAudio('explode_big', 'assets/audio/13_Ice_explosion_01.wav');
-        this.loadAudio('hit', 'assets/audio/61_Hit_03.wav');
-        this.loadAudio('buff', 'assets/audio/39_Block_03.wav');
-        this.loadAudio('boss_spawn', 'assets/audio/Boss_Spawn.mp3');
-        this.loadAudio('pause', 'assets/audio/092_Pause_04.wav');
-        this.loadAudio('unpause', 'assets/audio/098_Unpause_04.wav');
-        this.loadMusic('assets/audio/JDSherbert - Nostalgia Music Pack - Gameboy & A Long Car Journey.mp3');
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                this.ctx = new AudioContext();
+                this.initialized = true;
+                this.loadAudio('shoot', 'assets/audio/12_Step_wood_03.wav');
+                this.loadAudio('explode', 'assets/audio/04_Fire_explosion_04_medium.wav');
+                this.loadAudio('explode_big', 'assets/audio/13_Ice_explosion_01.wav');
+                this.loadAudio('hit', 'assets/audio/61_Hit_03.wav');
+                this.loadAudio('buff', 'assets/audio/39_Block_03.wav');
+                this.loadAudio('boss_spawn', 'assets/audio/Boss_Spawn.mp3');
+                this.loadAudio('pause', 'assets/audio/092_Pause_04.wav');
+                this.loadAudio('unpause', 'assets/audio/098_Unpause_04.wav');
+                this.loadMusic('assets/audio/JDSherbert - Nostalgia Music Pack - Gameboy & A Long Car Journey.mp3');
+            }
+        } catch (e) {
+            console.warn('AudioContext not available:', e);
+        }
     }
 
     async loadAudio(name, url) {
+        if (!this.ctx) return;
         try {
             const resp = await fetch(url);
             const arrayBuffer = await resp.arrayBuffer();
             this.buffers[name] = await this.ctx.decodeAudioData(arrayBuffer);
-        } catch (e) {
-            console.warn('Audio fallback for:', name);
-        }
+        } catch (e) {}
     }
 
     async loadMusic(url) {
+        if (!this.ctx) return;
         try {
             const resp = await fetch(url);
             const arrayBuffer = await resp.arrayBuffer();
@@ -56,14 +90,16 @@ class SoundManager {
         if (this.musicSource) {
             try { this.musicSource.stop(); } catch(e) {}
         }
-        this.musicSource = this.ctx.createBufferSource();
-        this.musicSource.buffer = this.musicBuffer;
-        this.musicSource.loop = true;
-        const gainNode = this.ctx.createGain();
-        gainNode.gain.value = 0.35;
-        this.musicSource.connect(gainNode);
-        gainNode.connect(this.ctx.destination);
-        this.musicSource.start(0);
+        try {
+            this.musicSource = this.ctx.createBufferSource();
+            this.musicSource.buffer = this.musicBuffer;
+            this.musicSource.loop = true;
+            const gainNode = this.ctx.createGain();
+            gainNode.gain.value = 0.35;
+            this.musicSource.connect(gainNode);
+            gainNode.connect(this.ctx.destination);
+            this.musicSource.start(0);
+        } catch(e) {}
     }
 
     play(name, volume = 0.5, pitchVariance = 0.1) {
@@ -102,13 +138,13 @@ loadImage('bg4', 'assets/art/layer4.png');
 loadImage('bullet', 'assets/art/bullet1.png');
 loadImage('player_gameover', 'assets/art/player_game_over.png');
 
-// Specific Player Sprites (Mapped to Unity Clips)
-loadImage('player_0', 'assets/sprites/player_sprite_0.png'); // Idle / Straight
-loadImage('player_1', 'assets/sprites/player_sprite_1.png'); // Thruster flare
-loadImage('player_2', 'assets/sprites/player_sprite_2.png'); // Down bank
-loadImage('player_3', 'assets/sprites/player_sprite_3.png'); // Up bank
-loadImage('player_6', 'assets/sprites/player_sprite_6.png'); // Left bank
-loadImage('player_boost', 'assets/sprites/player_sprite_9.png'); // Full boost flame
+// Sliced Player Sprites (Mapped to Unity Clips)
+loadImage('player_0', 'assets/sprites/player_sprite_0.png');     // Idle / Straight
+loadImage('player_1', 'assets/sprites/player_sprite_1.png');     // Thruster flicker
+loadImage('player_2', 'assets/sprites/player_sprite_2.png');     // Bank Down
+loadImage('player_3', 'assets/sprites/player_sprite_3.png');     // Bank Up
+loadImage('player_6', 'assets/sprites/player_sprite_6.png');     // Bank Left / Decel
+loadImage('player_boost', 'assets/sprites/player_sprite_9.png'); // Full Boost Flame
 
 // Critter Frames
 const critterFrames = [];
@@ -161,19 +197,19 @@ function addBoostParticle(x, y) {
     boostParticles.push({
         x: x + (Math.random() * 8 - 4),
         y: y + (Math.random() * 12 - 6),
-        vx: -(300 + Math.random() * 250),
+        vx: -(320 + Math.random() * 260),
         vy: (Math.random() * 60 - 30),
         size: 8 + Math.random() * 10,
-        alpha: 0.9,
+        alpha: 0.95,
         color: Math.random() > 0.4 ? '#38bdf8' : '#f97316'
     });
 }
 
-// --- Entities ---
+// --- Player Starship ---
 class Player {
     constructor() {
         this.x = 120;
-        this.y = canvas.height / 2;
+        this.y = canvas.height / 2 - 35;
         this.width = 95;
         this.height = 70;
         this.speed = 360;
@@ -191,6 +227,7 @@ class Player {
         this.tripleShotTimer = 0;
         this.rapidFireTimer = 0;
         this.superShieldTimer = 0;
+        this.pulseScale = 1.0;
 
         this.fireCooldown = 0;
     }
@@ -200,8 +237,7 @@ class Player {
         const boostKey = keys['Space'] || isRightMouseDown || keys['KeyE'];
         if (boostKey && this.energy > 0) {
             this.isBoosting = true;
-            this.energy = Math.max(0, this.energy - 40 * dt);
-            // Spawn boost exhaust particles behind engine
+            this.energy = Math.max(0, this.energy - 38 * dt);
             addBoostParticle(this.x - 70, this.y + this.height / 2);
         } else {
             this.isBoosting = false;
@@ -210,7 +246,7 @@ class Player {
 
         const currentSpeed = this.isBoosting ? this.boostSpeed : this.speed;
 
-        // Movement
+        // 8-directional smooth movement
         let dx = 0, dy = 0;
         if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
         if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
@@ -230,7 +266,7 @@ class Player {
         if (this.doubleShotTimer > 0) this.doubleShotTimer -= dt;
         if (this.rapidFireTimer > 0) this.rapidFireTimer -= dt;
 
-        // Strict Invulnerability Handling
+        // Strict Invulnerability Reset: Only invulnerable if a timer is active!
         if (this.superShieldTimer > 0) {
             this.superShieldTimer -= dt;
             this.isInvulnerable = true;
@@ -238,7 +274,12 @@ class Player {
             this.invulnerableTimer -= dt;
             this.isInvulnerable = true;
         } else {
-            this.isInvulnerable = false; // Strictly reset when no timers active!
+            this.isInvulnerable = false;
+        }
+
+        // Pulse scale decay
+        if (this.pulseScale > 1.0) {
+            this.pulseScale = Math.max(1.0, this.pulseScale - dt * 2.0);
         }
 
         // Weapon firing
@@ -255,7 +296,7 @@ class Player {
     shoot() {
         sounds.play('shoot', 0.4);
         if (this.tripleShotTimer > 0) {
-            // Triple Shot: 3 spread beams
+            // Triple Shot: 3 spread beams (upper angled, center straight, lower angled)
             bullets.push(new Bullet(this.x + this.width - 5, this.y + 4, 920, -50));
             bullets.push(new Bullet(this.x + this.width - 5, this.y + this.height / 2 - 5, 920, 0));
             bullets.push(new Bullet(this.x + this.width - 5, this.y + this.height - 14, 920, 50));
@@ -273,7 +314,7 @@ class Player {
         if (this.isInvulnerable) return;
         this.health -= amount;
         this.isInvulnerable = true;
-        this.invulnerableTimer = 1.5;
+        this.invulnerableTimer = 1.5; // 1.5s post-damage invulnerability
         sounds.play('hit', 0.6);
         spawnFloatingText(this.x + 20, this.y - 15, `-${amount} HEALTH`, '#ef4444');
 
@@ -285,44 +326,59 @@ class Player {
 
     heal(amount = 1) {
         this.health = Math.min(this.maxHealth, this.health + amount);
+        this.pulseScale = 1.35;
         sounds.play('buff', 0.7);
         spawnFloatingText(this.x + 20, this.y - 20, `+${amount} HEALTH!`, '#4ade80');
     }
 
     applyBuff(type) {
         sounds.play('buff', 0.8);
+        this.pulseScale = 1.35; // Authentic elastic pulse scale on buff collection!
+
+        // Buff potency scaling with time and distance (from Session 2 & 3)
+        const buffPower = Math.min(2.5, 1.0 + (survivalTime / 100) * 0.4 + (distance / 2500) * 0.35);
+
         if (type === 'HEAL') {
             this.heal(1);
         } else if (type === 'TRIPLE_SHOT') {
-            this.tripleShotTimer = 12;
-            spawnFloatingText(this.x + 10, this.y - 25, 'TRIPLE SHOT (12s)!', '#fb923c');
+            this.tripleShotTimer = 12 * buffPower;
+            spawnFloatingText(this.x + 10, this.y - 25, `TRIPLE SHOT (${Math.round(this.tripleShotTimer)}s)!`, '#fb923c');
         } else if (type === 'DOUBLE_SHOT') {
-            this.doubleShotTimer = 14;
-            spawnFloatingText(this.x + 10, this.y - 25, 'DOUBLE SHOT (14s)!', '#38bdf8');
+            this.doubleShotTimer = 14 * buffPower;
+            spawnFloatingText(this.x + 10, this.y - 25, `DOUBLE SHOT (${Math.round(this.doubleShotTimer)}s)!`, '#38bdf8');
         } else if (type === 'RAPID_FIRE') {
-            this.rapidFireTimer = 12;
-            spawnFloatingText(this.x + 10, this.y - 25, 'RAPID FIRE (12s)!', '#fde047');
+            this.rapidFireTimer = 12 * buffPower;
+            spawnFloatingText(this.x + 10, this.y - 25, `RAPID FIRE (${Math.round(this.rapidFireTimer)}s)!`, '#fde047');
         } else if (type === 'SHIELD') {
-            this.superShieldTimer = 8;
+            this.superShieldTimer = 8 * buffPower;
             this.isInvulnerable = true;
-            spawnFloatingText(this.x + 10, this.y - 25, 'SUPER SHIELD (8s)!', '#a855f7');
+            spawnFloatingText(this.x + 10, this.y - 25, `SUPER SHIELD (${Math.round(this.superShieldTimer)}s)!`, '#a855f7');
         }
     }
 
     draw() {
-        // Blinking effect during invulnerability
+        // Blinking effect during 1.5s invulnerability
         if (this.isInvulnerable && this.superShieldTimer <= 0 && Math.floor(Date.now() / 80) % 2 === 0) {
             return;
+        }
+
+        ctx.save();
+        if (this.pulseScale > 1.0) {
+            ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+            ctx.scale(this.pulseScale, this.pulseScale);
+            ctx.translate(-(this.x + this.width / 2), -(this.y + this.height / 2));
         }
 
         if (this.isBoosting) {
             // Render full boost sprite (player_sprite_9, width 188 with exhaust flame)
             const boostImg = images['player_boost'] || images['player_0'];
-            if (boostImg && boostImg.complete) {
+            if (boostImg && boostImg.complete && boostImg.naturalWidth > 0) {
                 const drawW = 178;
                 const drawH = 70;
                 const drawX = this.x - 83; // Preserves front nose alignment with normal ship
                 ctx.drawImage(boostImg, drawX, this.y, drawW, drawH);
+            } else {
+                this.drawVectorFallback();
             }
         } else {
             // Select directional animation frame
@@ -338,14 +394,15 @@ class Player {
                 frame = Math.floor(Date.now() / 120) % 2 === 0 ? images['player_0'] : images['player_1'];
             }
 
-            if (frame && frame.complete) {
+            if (frame && frame.complete && frame.naturalWidth > 0) {
                 ctx.drawImage(frame, this.x, this.y, this.width, this.height);
+            } else {
+                this.drawVectorFallback();
             }
         }
 
         // Super Shield Forcefield Visual
         if (this.superShieldTimer > 0) {
-            ctx.save();
             ctx.beginPath();
             ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 54, 0, Math.PI * 2);
             ctx.strokeStyle = this.superShieldTimer <= 2 ? '#fde047' : '#a855f7';
@@ -356,8 +413,24 @@ class Player {
 
             ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
             ctx.fill();
-            ctx.restore();
         }
+
+        ctx.restore();
+    }
+
+    drawVectorFallback() {
+        // High-tech vector starship fallback guaranteeing visibility in any condition
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.width, this.y + this.height / 2);
+        ctx.lineTo(this.x, this.y + 10);
+        ctx.lineTo(this.x + 20, this.y + this.height / 2);
+        ctx.lineTo(this.x, this.y + this.height - 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2;
+        ctx.stroke();
     }
 }
 
@@ -378,7 +451,7 @@ class Bullet {
 
     draw() {
         const img = images['bullet'];
-        if (img && img.complete) {
+        if (img && img.complete && img.naturalWidth > 0) {
             ctx.drawImage(img, this.x, this.y, this.width, this.height);
         } else {
             ctx.fillStyle = '#38bdf8';
@@ -414,28 +487,35 @@ class Critter {
         }
     }
 
+    // IsOnScreen check (from session bdb70fc3): cannot be damaged before entering screen!
+    isOnScreen() {
+        return this.x <= canvas.width - 20 && this.x >= -this.width;
+    }
+
     draw() {
         const frame = critterFrames[this.currentFrame] || critterFrames[0];
-        if (frame && frame.complete) {
-            const cx = this.x + this.width / 2;
-            const cy = this.y + this.height / 2;
-            const targetX = player ? player.x + player.width / 2 : 0;
-            const targetY = player ? player.y + player.height / 2 : cy;
-            // Critter sprite naturally faces UP; rotate to face player ship
-            const angle = Math.atan2(targetY - cy, targetX - cx);
+        const cx = this.x + this.width / 2;
+        const cy = this.y + this.height / 2;
+        const targetX = player ? player.x + player.width / 2 : 0;
+        const targetY = player ? player.y + player.height / 2 : cy;
+        // Critter sprite naturally faces UP; rotate so head points at player
+        const angle = Math.atan2(targetY - cy, targetX - cx);
 
-            ctx.save();
-            ctx.translate(cx, cy);
-            ctx.rotate(angle + Math.PI / 2);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle + Math.PI / 2);
+
+        if (frame && frame.complete && frame.naturalWidth > 0) {
             ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
-            ctx.restore();
         } else {
             ctx.fillStyle = '#ef4444';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
         }
+        ctx.restore();
     }
 }
 
+// --- Multi-Tier Escalating Bosses (From Session 8e3e9515, 28dd39ec, and bdb70fc3) ---
 class Boss {
     constructor(tier = 1) {
         this.tier = tier;
@@ -445,9 +525,15 @@ class Boss {
         this.x = canvas.width + 100;
         this.y = canvas.height / 2 - this.height / 2;
         this.targetY = canvas.height / 2;
-        this.maxHp = tier === 1 ? 50 : (tier === 2 ? 85 : 140);
+
+        // Base health per tier
+        const baseHp = tier === 1 ? 50 : (tier === 2 ? 85 : 140);
+        // Scaling with Time, Distance, and Completed Cycles (From GameManager.cs)
+        const healthMult = 1.0 + (survivalTime / 90) * 0.25 + (distance / 3000) * 0.20 + bossCycleCount * 0.35;
+        this.maxHp = Math.round(baseHp * healthMult);
         this.hp = this.maxHp;
-        this.speed = tier === 1 ? 260 : (tier === 2 ? 330 : 410);
+
+        this.speed = (tier === 1 ? 260 : (tier === 2 ? 330 : 410)) * Math.min(1.4, 1.0 + bossCycleCount * 0.1);
         this.state = 'ENTER'; // 'ENTER', 'HOVER', 'CHARGE'
         this.stateTimer = 0;
         this.currentFrame = 0;
@@ -471,7 +557,7 @@ class Boss {
                 this.stateTimer = 0;
             }
         } else if (this.state === 'HOVER') {
-            // Track player altitude
+            // Track player ship altitude
             if (player) {
                 const diff = (player.y - this.y);
                 this.y += Math.sign(diff) * Math.min(Math.abs(diff), 160 * dt);
@@ -483,7 +569,7 @@ class Boss {
         } else if (this.state === 'CHARGE') {
             this.x -= this.speed * 1.8 * dt;
             if (this.x < -this.width - 60) {
-                // Loop back for re-entry
+                // Loop back for re-entry (from session 8e3e9515)
                 this.x = canvas.width + 80;
                 this.y = 80 + Math.random() * (canvas.height - 240);
                 this.state = 'ENTER';
@@ -492,25 +578,31 @@ class Boss {
         }
     }
 
+    // IsOnScreen check (from session bdb70fc3): cannot be damaged before entering screen!
+    isOnScreen() {
+        return this.x <= canvas.width - 20;
+    }
+
     draw() {
         const frame = bossFrames[this.currentFrame] || bossFrames[0];
-        if (frame && frame.complete) {
-            const cx = this.x + this.width / 2;
-            const cy = this.y + this.height / 2;
-            const targetX = player ? player.x + player.width / 2 : 0;
-            const targetY = player ? player.y + player.height / 2 : cy;
-            // Boss sprite nose points DOWN in raw asset; rotate so nose faces player ship
-            const angle = Math.atan2(targetY - cy, targetX - cx);
+        const cx = this.x + this.width / 2;
+        const cy = this.y + this.height / 2;
+        const targetX = player ? player.x + player.width / 2 : 0;
+        const targetY = player ? player.y + player.height / 2 : cy;
+        // Boss sprite nose points DOWN in raw asset; rotate so heavy nose points directly at starship
+        const angle = Math.atan2(targetY - cy, targetX - cx);
 
-            ctx.save();
-            ctx.translate(cx, cy);
-            ctx.rotate(angle - Math.PI / 2);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle - Math.PI / 2);
+
+        if (frame && frame.complete && frame.naturalWidth > 0) {
             ctx.drawImage(frame, -this.width / 2, -this.height / 2, this.width, this.height);
-            ctx.restore();
         } else {
             ctx.fillStyle = '#dc2626';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
         }
+        ctx.restore();
     }
 }
 
@@ -535,7 +627,7 @@ class Explosion {
 
     draw() {
         const img = boomFrames[this.frame] || boomFrames[0];
-        if (img && img.complete) {
+        if (img && img.complete && img.naturalWidth > 0) {
             ctx.drawImage(img, this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
         }
     }
@@ -627,6 +719,7 @@ function updateSpawners(dt) {
         critters.push(new Critter());
     }
 
+    // Multi-tier Boss Wave Spawning (Boss 1 at 45s, Boss 2 at 100s, Boss 3 at 150s, loop)
     if (!activeBoss && survivalTime >= nextBossTime) {
         let tier = 1;
         if (survivalTime >= 150) tier = 3;
@@ -647,7 +740,7 @@ function update(dt) {
         if (comboTimer <= 0) combo = 0;
     }
 
-    // Parallax
+    // Parallax scrolling
     for (let i = 0; i < 4; i++) {
         bgOffsets[i] = (bgOffsets[i] + worldSpeed * bgSpeeds[i] * dt) % canvas.width;
     }
@@ -680,13 +773,16 @@ function update(dt) {
         c.update(dt);
 
         let critterDead = false;
-        // Bullet hits critter
-        for (let j = bullets.length - 1; j >= 0; j--) {
-            const b = bullets[j];
-            if (checkCollision(b, c)) {
-                bullets.splice(j, 1);
-                critterDead = true;
-                break;
+
+        // Check bullet hits only if critter is visibly on screen (IsOnScreen from session bdb70fc3)
+        if (c.isOnScreen()) {
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                const b = bullets[j];
+                if (checkCollision(b, c)) {
+                    bullets.splice(j, 1);
+                    critterDead = true;
+                    break;
+                }
             }
         }
 
@@ -721,6 +817,7 @@ function update(dt) {
             continue;
         }
 
+        // Off-screen cleanup
         if (c.x < -c.width - 50) critters.splice(i, 1);
     }
 
@@ -728,32 +825,34 @@ function update(dt) {
     if (activeBoss) {
         activeBoss.update(dt);
 
-        // Bullets hitting Boss
-        for (let j = bullets.length - 1; j >= 0; j--) {
-            const b = bullets[j];
-            if (checkCollision(b, activeBoss)) {
-                bullets.splice(j, 1);
-                activeBoss.hp -= 1;
-                sounds.play('hit', 0.35);
-                explosions.push(new Explosion(b.x, b.y, 40));
-                score += 50;
+        // Bullets hitting Boss (only if boss is on screen)
+        if (activeBoss.isOnScreen()) {
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                const b = bullets[j];
+                if (checkCollision(b, activeBoss)) {
+                    bullets.splice(j, 1);
+                    activeBoss.hp -= 1;
+                    sounds.play('hit', 0.35);
+                    explosions.push(new Explosion(b.x, b.y, 40));
+                    score += 50;
 
-                if (activeBoss.hp <= 0) {
-                    sounds.play('explode_big', 0.9);
-                    explosions.push(new Explosion(activeBoss.x + activeBoss.width / 2, activeBoss.y + activeBoss.height / 2, 260));
-                    bossCycleCount++;
-                    score += activeBoss.tier * 10000;
-                    player.heal(activeBoss.tier);
-                    player.applyBuff('SHIELD');
-                    spawnFloatingText(canvas.width / 2, canvas.height / 2, 'TITAN DEFEATED! ODYSSEY CONTINUES!', '#fde047');
-                    nextBossTime = survivalTime + 50;
-                    activeBoss = null;
-                    break;
+                    if (activeBoss.hp <= 0) {
+                        sounds.play('explode_big', 0.9);
+                        explosions.push(new Explosion(activeBoss.x + activeBoss.width / 2, activeBoss.y + activeBoss.height / 2, 260));
+                        bossCycleCount++;
+                        score += activeBoss.tier * 10000;
+                        player.heal(activeBoss.tier);
+                        player.applyBuff('SHIELD');
+                        spawnFloatingText(canvas.width / 2, canvas.height / 2, 'TITAN DEFEATED! ODYSSEY CONTINUES!', '#fde047');
+                        nextBossTime = survivalTime + 50;
+                        activeBoss = null;
+                        break;
+                    }
                 }
             }
         }
 
-        // Player colliding directly with Boss
+        // Player colliding directly with Boss (Physical contact check from session bdb70fc3)
         if (activeBoss) {
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
@@ -761,11 +860,11 @@ function update(dt) {
             const bCenterY = activeBoss.y + activeBoss.height / 2;
             const dist = Math.hypot(pCenterX - bCenterX, pCenterY - bCenterY);
 
-            // Distance threshold matches Unity Boss collider
+            // Distance threshold strictly matching physical hull contact
             if (dist < (player.width * 0.45 + activeBoss.width * 0.38)) {
                 if (!player.isInvulnerable) {
-                    player.takeDamage(2); // In Unity, Boss collision deals 2 damage!
-                    player.x = Math.max(30, player.x - 70); // Knockback
+                    player.takeDamage(2); // Boss collision deals 2 damage in Void Protocol!
+                    player.x = Math.max(30, player.x - 70); // Hull knockback
                 }
             }
         }
@@ -822,7 +921,7 @@ function draw() {
     // 1. Parallax Backgrounds
     for (let i = 0; i < 4; i++) {
         const bg = images[`bg${i + 1}`];
-        if (bg && bg.complete) {
+        if (bg && bg.complete && bg.naturalWidth > 0) {
             const offset = bgOffsets[i];
             ctx.drawImage(bg, -offset, 0, canvas.width, canvas.height);
             ctx.drawImage(bg, canvas.width - offset, 0, canvas.width, canvas.height);
@@ -854,7 +953,7 @@ function draw() {
     // 6. Bullets
     for (const b of bullets) b.draw();
 
-    // 7. Player
+    // 7. Player Starship
     player.draw();
 
     // 8. Explosions
@@ -872,7 +971,7 @@ function draw() {
         ctx.restore();
     }
 
-    // 10. HUD Overlays
+    // 10. HUD Overlays (Using universal polyfilled round rectangles)
     drawHUD();
 }
 
@@ -881,10 +980,8 @@ function drawHUD() {
     ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(canvas.width / 2 - 210, 16, 420, 44, 8);
-    ctx.fill();
-    ctx.stroke();
+    fillRoundRect(ctx, canvas.width / 2 - 210, 16, 420, 44, 8);
+    strokeRoundRect(ctx, canvas.width / 2 - 210, 16, 420, 44, 8);
 
     const mins = Math.floor(survivalTime / 60);
     const secs = Math.floor(survivalTime % 60);
@@ -965,7 +1062,7 @@ function drawHUD() {
         ctx.fillText(`COMBO x${combo}!`, canvas.width - 24, 66);
     }
 
-    // Bottom HUD: Boss Health Bar
+    // Bottom HUD: Single-Line Boss Health Bar (From session bdb70fc3)
     if (activeBoss) {
         const barW = 540;
         const barH = 20;
@@ -973,9 +1070,7 @@ function drawHUD() {
         const barY = canvas.height - 48;
 
         ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-        ctx.beginPath();
-        ctx.roundRect(barX - 10, barY - 26, barW + 20, 52, 6);
-        ctx.fill();
+        fillRoundRect(ctx, barX - 10, barY - 26, barW + 20, 52, 6);
 
         ctx.fillStyle = '#ef4444';
         ctx.font = 'bold 15px sans-serif';
@@ -985,7 +1080,7 @@ function drawHUD() {
         ctx.fillStyle = '#334155';
         ctx.fillRect(barX, barY, barW, barH);
         ctx.fillStyle = '#dc2626';
-        ctx.fillRect(barX, barY, (activeBoss.hp / activeBoss.maxHp) * barW, barH);
+        ctx.fillRect(barX, barY, Math.max(0, (activeBoss.hp / activeBoss.maxHp)) * barW, barH);
         ctx.strokeStyle = '#f87171';
         ctx.strokeRect(barX, barY, barW, barH);
     }
@@ -1046,16 +1141,20 @@ document.getElementById('restart-btn').addEventListener('click', () => {
     document.getElementById('gameover-overlay').classList.add('hidden');
 });
 
-// Animation Loop
+// Immortal Animation Loop: requestAnimationFrame scheduled FIRST and wrapped in try-catch
 let lastTime = performance.now();
 function gameLoop(now) {
+    requestAnimationFrame(gameLoop); // Loop never terminates!
+
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
-    update(dt);
-    draw();
-
-    requestAnimationFrame(gameLoop);
+    try {
+        update(dt);
+        draw();
+    } catch (err) {
+        console.error('Frame error:', err);
+    }
 }
 
 requestAnimationFrame(gameLoop);
