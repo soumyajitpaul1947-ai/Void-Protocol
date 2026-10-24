@@ -60,6 +60,7 @@ class SoundManager {
                 this.loadAudio('boss_charge', 'assets/audio/Swipe.mp3');
                 this.loadAudio('boost', 'assets/audio/46_Poison_01.wav');
                 this.loadAudio('hit_armor', 'assets/audio/03_Step_grass_03.wav');
+                this.loadAudio('ui_click', 'assets/audio/03_Step_grass_03.wav');
                 this.loadAudio('squish', 'assets/audio/77_flesh_02.wav');
                 this.loadAudio('burn', 'assets/audio/51_Flee_02.wav');
                 this.loadAudio('pause', 'assets/audio/092_Pause_04.wav');
@@ -153,7 +154,7 @@ for (let i = 0; i < 78; i++) {
 
 let assetsLoaded = false;
 function preloadAllAssets() {
-    return Promise.all(assetManifest.map(item => {
+    const imgPromises = assetManifest.map(item => {
         return new Promise(resolve => {
             const img = new Image();
             img.onload = () => {
@@ -166,9 +167,15 @@ function preloadAllAssets() {
             };
             img.src = item.src;
         });
-    })).then(() => {
+    });
+
+    const fontPromise = (document.fonts && document.fonts.load)
+        ? document.fonts.load('20px ThaleahFat').catch(() => null)
+        : Promise.resolve();
+
+    return Promise.all([...imgPromises, fontPromise]).then(() => {
         assetsLoaded = true;
-        console.log('All 115 Void Protocol visual assets loaded and decoded.');
+        console.log('All Void Protocol visual assets and fonts loaded.');
     });
 }
 
@@ -269,9 +276,11 @@ class Player {
             }
             this.isBoosting = true;
             this.energy = Math.max(0, this.energy - 38 * dt);
-            const drawW = Math.round(this.width * 1.88);
-            const flameTipX = this.x + this.width - drawW;
+            // Particle exhaust emitted behind rear engine; ship body retains original shape!
+            const flameTipX = this.x - 6;
             addBoostParticle(flameTipX, this.y + this.height / 2);
+            addBoostParticle(flameTipX - 8, this.y + this.height / 2 - 4);
+            addBoostParticle(flameTipX - 8, this.y + this.height / 2 + 4);
         } else {
             this.isBoosting = false;
             this.energy = Math.min(this.maxEnergy, this.energy + 22 * dt);
@@ -390,46 +399,18 @@ class Player {
     }
 
     draw() {
-        // Blinking effect during 1.5s invulnerability
+        // Blinking effect only during post-hit invulnerability
         if (this.isInvulnerable && this.superShieldTimer <= 0 && Math.floor(Date.now() / 80) % 2 === 0) {
             return;
         }
 
         ctx.save();
         try {
-            if (this.pulseScale > 1.0) {
-                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
-                ctx.scale(this.pulseScale, this.pulseScale);
-                ctx.translate(-(this.x + this.width / 2), -(this.y + this.height / 2));
-            }
-
-            if (this.isBoosting) {
-                // Render full boost sprite (player_sprite_9, width 188 with exhaust flame)
-                // In Unity, player_sprite_0 is 100x100 and player_sprite_9 is 188x100.
-                // Both share right-edge pivot (x:1, y:0.5) so nose stays perfectly fixed!
-                const boostImg = images['player_boost'] || images['player_0'];
-                if (boostImg && boostImg.complete && boostImg.naturalWidth > 0) {
-                    const drawW = Math.round(this.width * 1.88); // 179 px
-                    const drawH = this.height;                   // 70 px
-                    const drawX = this.x + this.width - drawW;   // Cockpit and nose stay perfectly fixed!
-                    ctx.drawImage(boostImg, drawX, this.y, drawW, drawH);
-                }
-            } else {
-                // Select directional animation frame
-                let frame = images['player_0'];
-                if (keys['KeyW'] || keys['ArrowUp']) {
-                    frame = images['player_3'] || images['player_0']; // Bank Up
-                } else if (keys['KeyS'] || keys['ArrowDown']) {
-                    frame = images['player_2'] || images['player_0']; // Bank Down
-                } else if (keys['KeyA'] || keys['ArrowLeft']) {
-                    frame = images['player_6'] || images['player_0']; // Bank Left / Decel
-                } else {
-                    frame = images['player_0']; // Rock-solid idle flight matching Unity Player_Right
-                }
-
-                if (frame && frame.complete && frame.naturalWidth > 0) {
-                    ctx.drawImage(frame, this.x, this.y, this.width, this.height);
-                }
+            // Ship ALWAYS retains its exact, solid, authentic shape and size (width: 95, height: 70)
+            // It does not stretch, elongate, shrink, or distort when controls are pressed!
+            const shipImg = images['player_0'];
+            if (shipImg && shipImg.complete && shipImg.naturalWidth > 0) {
+                ctx.drawImage(shipImg, this.x, this.y, this.width, this.height);
             }
 
             // Super Shield Forcefield Visual
@@ -496,20 +477,15 @@ class Critter {
         this.freq = 2.5 + Math.random() * 2.0;
         this.amp = 45 + Math.random() * 55;
         this.time = Math.random() * 10;
-        this.frameTimer = 0;
-        this.currentFrame = 0;
+        // Constant sprite variant (0 to 3) per SpaceQuest Critter1.cs (no frame blinking!)
+        this.spriteIndex = Math.floor(Math.random() * 4);
     }
 
     update(dt) {
         this.time += dt;
         this.x -= this.speed * dt;
         this.y = this.baseY + Math.sin(this.time * this.freq) * this.amp;
-
-        this.frameTimer += dt;
-        if (this.frameTimer > 0.1) {
-            this.frameTimer = 0;
-            this.currentFrame = (this.currentFrame + 1) % 4;
-        }
+        // Constant: No sprite frame cycling so enemies remain rock-solid and stable!
     }
 
     // IsOnScreen check: must be visibly on screen before being damaged!
@@ -518,7 +494,7 @@ class Critter {
     }
 
     draw() {
-        const frame = getCritterFrame(this.currentFrame);
+        const frame = images[`critter_${this.spriteIndex}`] || images['critter_0'];
         const cx = this.x + this.width / 2;
         const cy = this.y + this.height / 2;
         const targetX = player ? player.x + player.width / 2 : 0;
@@ -814,9 +790,36 @@ function updateSpawners(dt) {
     }
 }
 
+// Ambient Space Particles for Menus (moving elements on front/end UX)
+const menuParticles = [];
+for (let i = 0; i < 45; i++) {
+    menuParticles.push({
+        x: Math.random() * 1280,
+        y: Math.random() * 720,
+        speed: 15 + Math.random() * 45,
+        size: 1 + Math.random() * 2.5,
+        alpha: 0.25 + Math.random() * 0.7,
+        color: Math.random() > 0.4 ? '#93c5fd' : '#c084fc'
+    });
+}
+
 // --- Main Update Loop ---
 function update(dt) {
-    if (gameState !== 'PLAYING') return;
+    if (gameState !== 'PLAYING') {
+        // SpaceQuest MenuParallax idle drift
+        const menuDriftSpeed = 22;
+        for (let i = 0; i < 4; i++) {
+            bgOffsets[i] = (bgOffsets[i] + menuDriftSpeed * bgSpeeds[i] * dt) % canvas.width;
+        }
+        for (const p of menuParticles) {
+            p.x -= p.speed * dt;
+            if (p.x < -10) {
+                p.x = canvas.width + 10;
+                p.y = Math.random() * canvas.height;
+            }
+        }
+        return;
+    }
 
     const currentWorldSpeed = player.isBoosting ? worldSpeed * 2.8 : worldSpeed;
     survivalTime += dt;
@@ -1018,6 +1021,18 @@ function draw() {
         }
     }
 
+    // Moving ambient cosmic particles during menus
+    if (gameState !== 'PLAYING') {
+        for (const p of menuParticles) {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.alpha;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+    }
+
     // 2. Boost Particles
     for (const bp of boostParticles) {
         ctx.save();
@@ -1069,71 +1084,71 @@ function draw() {
     }
 
     // 10. HUD Overlays (Using universal polyfilled round rectangles)
-    drawHUD();
+    if (gameState === 'PLAYING') {
+        drawHUD();
+    }
 }
 
 function drawHUD() {
-    // Top-Center Info Capsule
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-    ctx.strokeStyle = '#38bdf8';
+    // 1. Top-Center Mission Time & Distance Capsule
+    ctx.fillStyle = 'rgba(10, 15, 30, 0.85)';
+    ctx.strokeStyle = 'rgba(155, 155, 255, 0.45)';
     ctx.lineWidth = 1.5;
-    fillRoundRect(ctx, canvas.width / 2 - 210, 16, 420, 44, 8);
-    strokeRoundRect(ctx, canvas.width / 2 - 210, 16, 420, 44, 8);
+    fillRoundRect(ctx, canvas.width / 2 - 180, 16, 360, 42, 8);
+    strokeRoundRect(ctx, canvas.width / 2 - 180, 16, 360, 42, 8);
 
     const mins = Math.floor(survivalTime / 60);
     const secs = Math.floor(survivalTime % 60);
     const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     const distKm = Math.floor(distance / 100);
 
-    ctx.font = 'bold 20px monospace';
+    ctx.font = '22px ThaleahFat, monospace';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText('TIME ', canvas.width / 2 - 110, 44);
+    ctx.fillText('TIME', canvas.width / 2 - 120, 44);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(timeStr, canvas.width / 2 - 50, 44);
+    ctx.fillText(timeStr, canvas.width / 2 - 60, 44);
 
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText('DIST ', canvas.width / 2 + 50, 44);
+    ctx.fillText('DIST', canvas.width / 2 + 40, 44);
     ctx.fillStyle = '#38bdf8';
-    ctx.fillText(`${distKm} KM`, canvas.width / 2 + 120, 44);
+    ctx.fillText(`${distKm} KM`, canvas.width / 2 + 110, 44);
 
-    // Left HUD: Health
-    ctx.font = '24px sans-serif';
+    // 2. Top-Left: Energy Slider (SpaceQuest Energy Slider layout)
+    const eBarX = 24;
+    const eBarY = 28;
+    const eBarW = 210;
+    const eBarH = 18;
+
+    ctx.font = '20px ThaleahFat, monospace';
     ctx.textAlign = 'left';
-    let hearts = '';
-    for (let i = 0; i < player.health; i++) hearts += '❤️ ';
-    for (let i = player.health; i < player.maxHealth; i++) hearts += '🖤 ';
-    ctx.fillText(hearts, 24, 40);
+    ctx.fillStyle = '#a5b4fc';
+    ctx.fillText('ENERGY', eBarX, eBarY - 6);
 
-    // Labeled Boost / Energy Bar
-    const bBarX = 24;
-    const bBarY = 68;
-    const bBarW = 190;
-    const bBarH = 14;
-
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText('BOOST / RAM [SPACE / R-CLICK]', bBarX, bBarY - 6);
-
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.fillRect(bBarX, bBarY, bBarW, bBarH);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(eBarX, eBarY, eBarW, eBarH);
 
     const boostPct = Math.max(0, player.energy / player.maxEnergy);
-    ctx.fillStyle = player.energy > 25 ? '#0284c7' : '#ef4444';
-    ctx.fillRect(bBarX, bBarY, boostPct * bBarW, bBarH);
-    ctx.fillStyle = player.energy > 25 ? '#38bdf8' : '#f87171';
-    ctx.fillRect(bBarX, bBarY, boostPct * bBarW, bBarH / 2);
+    ctx.fillStyle = player.energy > 25 ? '#6366f1' : '#ef4444';
+    ctx.fillRect(eBarX, eBarY, boostPct * eBarW, eBarH);
+    ctx.fillStyle = player.energy > 25 ? '#818cf8' : '#f87171';
+    ctx.fillRect(eBarX, eBarY, boostPct * eBarW, eBarH / 2);
 
-    ctx.strokeStyle = '#64748b';
+    ctx.strokeStyle = '#475569';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(bBarX, bBarY, bBarW, bBarH);
+    ctx.strokeRect(eBarX, eBarY, eBarW, eBarH);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 10px monospace';
+    ctx.font = '16px ThaleahFat, monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(`${Math.round(boostPct * 100)}%`, bBarX + bBarW / 2, bBarY + 11);
+    ctx.fillText(`${Math.round(boostPct * 100)}/100`, eBarX + eBarW / 2, eBarY + 14);
 
-    // Active Buffs Indicators
+    // Key hint & Active Power-up Buffs
+    ctx.font = '16px ThaleahFat, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('[SPACE / R-CLICK]', eBarX, eBarY + 34);
+
     let activeBuffs = [];
     if (player.tripleShotTimer > 0) activeBuffs.push(`TRIPLE SHOT [${Math.ceil(player.tripleShotTimer)}s]`);
     if (player.doubleShotTimer > 0 && player.tripleShotTimer <= 0) activeBuffs.push(`DOUBLE SHOT [${Math.ceil(player.doubleShotTimer)}s]`);
@@ -1141,44 +1156,75 @@ function drawHUD() {
     if (player.superShieldTimer > 0) activeBuffs.push(`SHIELD [${Math.ceil(player.superShieldTimer)}s]`);
 
     if (activeBuffs.length > 0) {
-        ctx.font = 'bold 13px monospace';
-        ctx.textAlign = 'left';
         ctx.fillStyle = '#fde047';
-        ctx.fillText(activeBuffs.join(' | '), bBarX, bBarY + 30);
+        ctx.fillText(activeBuffs.join(' | '), eBarX, eBarY + 52);
     }
 
-    // Right HUD: Score & Combo
+    // 3. Top-Right: Health Slider (SpaceQuest Health Slider layout)
+    const hBarW = 210;
+    const hBarH = 18;
+    const hBarX = canvas.width - 24 - hBarW;
+    const hBarY = 28;
+
+    ctx.font = '20px ThaleahFat, monospace';
     ctx.textAlign = 'right';
-    ctx.font = 'bold 22px monospace';
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillText(`SCORE: ${score.toLocaleString()}`, canvas.width - 24, 40);
+    ctx.fillStyle = '#f87171';
+    let hearts = '';
+    for (let i = 0; i < player.health; i++) hearts += '❤️ ';
+    for (let i = player.health; i < player.maxHealth; i++) hearts += '🖤 ';
+    ctx.fillText(`HEALTH  ${hearts}`, canvas.width - 24, hBarY - 6);
+
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(hBarX, hBarY, hBarW, hBarH);
+
+    const healthPct = Math.max(0, player.health / player.maxHealth);
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(hBarX, hBarY, healthPct * hBarW, hBarH);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(hBarX, hBarY, healthPct * hBarW, hBarH / 2);
+
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(hBarX, hBarY, hBarW, hBarH);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '16px ThaleahFat, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${player.health}/${player.maxHealth}`, hBarX + hBarW / 2, hBarY + 14);
+
+    // Score & Combo below health bar
+    ctx.textAlign = 'right';
+    ctx.font = '24px ThaleahFat, monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`SCORE: ${score.toLocaleString()}`, canvas.width - 24, hBarY + 42);
 
     if (combo > 1) {
-        ctx.font = 'bold 18px sans-serif';
+        ctx.font = '20px ThaleahFat, monospace';
         ctx.fillStyle = '#fde047';
-        ctx.fillText(`COMBO x${combo}!`, canvas.width - 24, 66);
+        ctx.fillText(`COMBO x${combo}!`, canvas.width - 24, hBarY + 64);
     }
 
-    // Bottom HUD: Single-Line Boss Health Bar (From session bdb70fc3)
+    // 4. Bottom-Center: Single-Line Boss Health Bar
     if (activeBoss && activeBoss.x < canvas.width) {
         const barW = 540;
         const barH = 20;
         const barX = canvas.width / 2 - barW / 2;
         const barY = canvas.height - 48;
 
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctx.fillStyle = 'rgba(10, 15, 30, 0.9)';
         fillRoundRect(ctx, barX - 10, barY - 26, barW + 20, 52, 6);
 
-        ctx.fillStyle = '#ef4444';
-        ctx.font = 'bold 15px sans-serif';
+        ctx.fillStyle = '#f87171';
+        ctx.font = '20px ThaleahFat, monospace';
         ctx.textAlign = 'center';
         ctx.fillText(`${activeBoss.name} [${activeBoss.hp}/${activeBoss.maxHp}]`, canvas.width / 2, barY - 8);
 
-        ctx.fillStyle = '#334155';
+        ctx.fillStyle = '#000000';
         ctx.fillRect(barX, barY, barW, barH);
         ctx.fillStyle = '#dc2626';
         ctx.fillRect(barX, barY, Math.max(0, (activeBoss.hp / activeBoss.maxHp)) * barW, barH);
         ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 1.5;
         ctx.strokeRect(barX, barY, barW, barH);
     }
 }
@@ -1228,6 +1274,7 @@ if (startBtn) {
 
     startBtn.addEventListener('click', () => {
         sounds.init();
+        sounds.play('ui_click', 0.8);
         resetGame();
         gameState = 'PLAYING';
         document.getElementById('start-overlay').classList.add('hidden');
@@ -1243,10 +1290,12 @@ preloadAllAssets().then(() => {
 });
 
 document.getElementById('resume-btn').addEventListener('click', () => {
+    sounds.play('ui_click', 0.8);
     togglePause();
 });
 
 document.getElementById('restart-btn').addEventListener('click', () => {
+    sounds.play('ui_click', 0.8);
     resetGame();
     gameState = 'PLAYING';
     document.getElementById('gameover-overlay').classList.add('hidden');
@@ -1255,6 +1304,7 @@ document.getElementById('restart-btn').addEventListener('click', () => {
 const titleBtn = document.getElementById('title-btn');
 if (titleBtn) {
     titleBtn.addEventListener('click', () => {
+        sounds.play('ui_click', 0.8);
         resetGame();
         gameState = 'START';
         document.getElementById('gameover-overlay').classList.add('hidden');
@@ -1265,6 +1315,7 @@ if (titleBtn) {
 const pauseTitleBtn = document.getElementById('pause-title-btn');
 if (pauseTitleBtn) {
     pauseTitleBtn.addEventListener('click', () => {
+        sounds.play('ui_click', 0.8);
         resetGame();
         gameState = 'START';
         document.getElementById('pause-overlay').classList.add('hidden');

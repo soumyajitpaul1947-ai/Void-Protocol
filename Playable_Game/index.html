@@ -3,68 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Void Protocol - Playable Game</title>
+    <title>Void Protocol - Space Survival Marathon</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
         <canvas id="gameCanvas" width="1280" height="720"></canvas>
 
-        <!-- Start Screen Overlay -->
+        <!-- Start Screen Overlay (Front UI) -->
         <div id="start-overlay" class="overlay">
             <div class="menu-hero">
-                <img src="assets/art/player_large.png" alt="Starship" class="menu-ship-img">
+                <div class="hero-ship-wrapper">
+                    <img src="assets/art/player_large.png" alt="Starship" class="menu-ship-img">
+                    <div class="engine-thruster-glow"></div>
+                </div>
             </div>
 
             <div class="title-container">
-                <h1 class="game-title">VOID PROTOCOL</h1>
+                <div class="sq-title-wrapper animated-title">
+                    <span class="sq-title-word">VOID</span>
+                    <span class="sq-title-word">PROTOCOL</span>
+                </div>
                 <p class="game-subtitle">Endless Tactical Space Marathon</p>
             </div>
 
             <div class="controls-guide">
                 <div class="control-item">
-                    <span>STEER SHIP:</span>
+                    <span class="control-label">STEER SHIP:</span>
                     <span class="key">W A S D / ARROWS</span>
                 </div>
                 <div class="control-item">
-                    <span>PHASER CANNONS:</span>
+                    <span class="control-label">PHASER CANNON:</span>
                     <span class="key">LEFT CLICK / SHIFT</span>
                 </div>
                 <div class="control-item">
-                    <span>WARP BOOST / RAM:</span>
+                    <span class="control-label">WARP BOOST / RAM:</span>
                     <span class="key">RIGHT CLICK / SPACE</span>
                 </div>
                 <div class="control-item">
-                    <span>TACTICAL PAUSE:</span>
+                    <span class="control-label">TACTICAL PAUSE:</span>
                     <span class="key">ESC / P</span>
                 </div>
             </div>
 
-            <button id="start-btn" class="btn-primary">LAUNCH MISSION</button>
-            <div class="menu-credits">Assets by Code Laboratory // Void Protocol Engine</div>
+            <div class="menu-actions">
+                <button id="start-btn" class="btn-primary pulse-btn">LAUNCH MISSION</button>
+            </div>
+
+            <div class="menu-credits">ORIGINAL FOUNDATION BY CODE LABORATORY // VOID PROTOCOL BY SOUMYAJIT PAUL</div>
         </div>
 
         <!-- Pause Overlay -->
         <div id="pause-overlay" class="overlay hidden">
             <div class="pause-card">
-                <h2 class="pause-title">MISSION PAUSED</h2>
+                <div class="sq-title-wrapper pause-title-wrapper">
+                    <span class="sq-title-word pause-word">PAUSED</span>
+                </div>
                 <p class="pause-subtitle">SYSTEMS IN ORBITAL STASIS</p>
-                <p style="color: #94a3b8; margin-bottom: 24px; font-size: 15px;">Press <b style="color: #38bdf8;">ESC</b> or <b style="color: #38bdf8;">P</b> to resume</p>
+                <p class="pause-hint">PRESS <span class="key">ESC</span> OR <span class="key">P</span> TO RESUME</p>
                 <div class="overlay-btn-group">
-                    <button id="resume-btn" class="btn-primary">RESUME MISSION</button>
-                    <button id="pause-title-btn" class="btn-secondary">ABORT TO TITLE</button>
+                    <button id="resume-btn" class="btn-primary">RESUME</button>
+                    <button id="pause-title-btn" class="btn-secondary">TITLE SCREEN</button>
                 </div>
             </div>
         </div>
 
-        <!-- Game Over Overlay -->
+        <!-- Game Over Overlay (End UI) -->
         <div id="gameover-overlay" class="overlay hidden">
             <div id="gameover-card" class="stats-card">
+                <div class="card-scanline"></div>
                 <div class="gameover-ship-container">
-                    <img src="assets/art/player_game_over.png" alt="Destroyed Ship" class="gameover-ship-img">
+                    <div class="wreckage-wrapper">
+                        <img src="assets/art/player_game_over.png" alt="Destroyed Ship" class="gameover-ship-img">
+                        <div class="smoke-spark s1"></div>
+                        <div class="smoke-spark s2"></div>
+                        <div class="smoke-spark s3"></div>
+                    </div>
                 </div>
-                <h2 class="gameover-title">CRITICAL HULL FAILURE</h2>
-                <div id="final-rank" class="rank-badge" style="color: #38bdf8;">RANK A</div>
+                <div class="sq-title-wrapper gameover-title-wrapper alert-pulse">
+                    <span class="sq-title-word gameover-word">GAME</span>
+                    <span class="sq-title-word gameover-word">OVER</span>
+                </div>
+                <p class="gameover-subtitle">CRITICAL HULL FAILURE</p>
+                <div id="final-rank" class="rank-badge rank-glow" style="color: #38bdf8;">RANK A</div>
                 
                 <div class="stats-grid">
                     <div class="stat-row">

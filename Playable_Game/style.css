@@ -1,3 +1,11 @@
+@font-face {
+    font-family: 'ThaleahFat';
+    src: url('assets/fonts/ThaleahFat.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -7,14 +15,17 @@
 
 body {
     background-color: #030712;
-    color: #f8fafc;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #ffffff;
+    font-family: 'ThaleahFat', 'Courier New', monospace;
     overflow: hidden;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
     width: 100vw;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: grayscale;
+    image-rendering: pixelated;
 }
 
 #game-container {
@@ -22,20 +33,11 @@ body {
     width: min(100vw, calc(100vh * 16 / 9));
     height: min(100vh, calc(100vw * 9 / 16));
     aspect-ratio: 16 / 9;
-    box-shadow: 0 0 50px rgba(56, 189, 248, 0.25), 0 0 20px rgba(0, 0, 0, 0.8);
-    border: 2px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 50px rgba(155, 155, 255, 0.25), 0 0 20px rgba(0, 0, 0, 0.9);
+    border: 2px solid rgba(155, 155, 255, 0.45);
     border-radius: 8px;
     overflow: hidden;
     background: #000;
-}
-
-.menu-credits {
-    position: absolute;
-    bottom: 16px;
-    left: 24px;
-    font-size: 13px;
-    color: #64748b;
-    letter-spacing: 1px;
 }
 
 canvas#gameCanvas {
@@ -53,88 +55,141 @@ canvas#gameCanvas {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: radial-gradient(circle at center, rgba(15, 23, 42, 0.82) 0%, rgba(3, 7, 18, 0.94) 100%);
-    backdrop-filter: blur(10px);
+    background: radial-gradient(circle at center, rgba(10, 15, 30, 0.78) 0%, rgba(3, 7, 18, 0.92) 100%);
+    backdrop-filter: blur(6px);
     z-index: 10;
-    transition: opacity 0.3s ease;
-    padding: 20px;
+    transition: opacity 0.25s ease;
+    padding: 16px;
 }
 
 .hidden {
     display: none !important;
 }
 
-/* Animations */
-@keyframes shipLevitate {
-    0%, 100% {
-        transform: translateY(0px) rotate(0deg);
-        filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.5));
-    }
-    50% {
-        transform: translateY(-8px) rotate(1deg);
-        filter: drop-shadow(0 0 32px rgba(56, 189, 248, 0.85));
-    }
-}
+/* ===================================================
+   MOVING ELEMENTS & ANIMATIONS (SpaceQuest-Inspired)
+   =================================================== */
 
-@keyframes wreckageSmoke {
-    0%, 100% {
-        transform: scale(1);
-        filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.45));
-    }
-    50% {
-        transform: scale(1.04);
-        filter: drop-shadow(0 0 28px rgba(239, 68, 68, 0.85));
-    }
-}
-
-/* Start Menu Hero */
+/* Front UI Hero Starship Levitation & Thruster Glow */
 .menu-hero {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
+}
+
+.hero-ship-wrapper {
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    animation: shipLevitate 3.4s ease-in-out infinite;
 }
 
 .menu-ship-img {
-    width: 140px;
+    width: 125px;
     height: auto;
-    animation: shipLevitate 3.5s ease-in-out infinite;
+    filter: drop-shadow(0 0 16px rgba(155, 155, 255, 0.6));
+    z-index: 2;
 }
 
+.engine-thruster-glow {
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 18px;
+    background: radial-gradient(circle, #38bdf8 0%, #818cf8 60%, transparent 100%);
+    border-radius: 50%;
+    filter: blur(4px);
+    animation: thrusterPulse 0.4s ease-in-out infinite alternate;
+    z-index: 1;
+}
+
+@keyframes shipLevitate {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+    50% {
+        transform: translateY(-9px) rotate(1.2deg);
+    }
+}
+
+@keyframes thrusterPulse {
+    0% {
+        opacity: 0.65;
+        transform: translateY(-50%) scaleX(0.85);
+        filter: blur(3px) drop-shadow(0 0 8px #38bdf8);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(-50%) scaleX(1.4);
+        filter: blur(5px) drop-shadow(0 0 16px #60a5fa);
+    }
+}
+
+/* Title Presentation & Shimmer */
 .title-container {
     text-align: center;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
-.game-title {
-    font-size: 64px;
-    font-weight: 900;
-    letter-spacing: 8px;
-    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+.sq-title-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 0.82;
+    margin-bottom: 4px;
+}
+
+.sq-title-word {
+    font-family: 'ThaleahFat', monospace;
+    font-size: 76px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #9b9bff 0%, #cbd5e1 55%, #ffffff 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 35px rgba(56, 189, 248, 0.6);
-    margin-bottom: 6px;
+    filter: drop-shadow(4px 4px 0px #0b0f19) drop-shadow(0 0 24px rgba(155, 155, 255, 0.65));
+    display: block;
+}
+
+.animated-title .sq-title-word {
+    animation: titleGlowSheen 4.2s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlowSheen {
+    0% {
+        filter: drop-shadow(4px 4px 0px #0b0f19) drop-shadow(0 0 18px rgba(155, 155, 255, 0.5));
+    }
+    100% {
+        filter: drop-shadow(4px 4px 0px #0b0f19) drop-shadow(0 0 32px rgba(168, 168, 254, 0.95));
+    }
 }
 
 .game-subtitle {
-    font-size: 17px;
-    letter-spacing: 4px;
+    font-family: 'ThaleahFat', monospace;
+    font-size: 20px;
+    letter-spacing: 3px;
     color: #94a3b8;
+    text-shadow: 2px 2px 0px #000000;
     text-transform: uppercase;
+    margin-top: 4px;
 }
 
+/* Controls Guide Box */
 .controls-guide {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px 24px;
-    background: rgba(15, 23, 42, 0.75);
-    border: 1px solid rgba(56, 189, 248, 0.35);
-    box-shadow: 0 0 25px rgba(56, 189, 248, 0.15), inset 0 0 15px rgba(56, 189, 248, 0.05);
-    padding: 14px 28px;
-    border-radius: 12px;
-    margin-bottom: 22px;
-    font-size: 14px;
+    gap: 8px 24px;
+    background: rgba(10, 15, 30, 0.85);
+    border: 2px solid rgba(155, 155, 255, 0.4);
+    box-shadow: 0 0 25px rgba(155, 155, 255, 0.15), inset 0 0 12px rgba(155, 155, 255, 0.05);
+    padding: 12px 24px;
+    border-radius: 10px;
+    margin-bottom: 18px;
     min-width: 480px;
 }
 
@@ -142,51 +197,82 @@ canvas#gameCanvas {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 16px;
-    color: #cbd5e1;
-    font-size: 13px;
+    gap: 12px;
+    font-family: 'ThaleahFat', monospace;
+    font-size: 19px;
     letter-spacing: 1px;
 }
 
-.key {
-    background: rgba(30, 41, 59, 0.9);
-    border: 1px solid rgba(56, 189, 248, 0.4);
-    padding: 3px 10px;
-    border-radius: 6px;
-    color: #38bdf8;
-    font-family: monospace;
-    font-weight: bold;
-    font-size: 12px;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+.control-label {
+    color: #94a3b8;
+    text-shadow: 1px 1px 0px #000;
 }
 
-/* Authentic SpaceQuest-Inspired Sci-Fi Pill Buttons */
+.key {
+    background: rgba(20, 30, 55, 0.95);
+    border: 1px solid rgba(155, 155, 255, 0.5);
+    padding: 2px 8px;
+    border-radius: 6px;
+    color: #93c5fd;
+    font-family: 'ThaleahFat', monospace;
+    font-size: 18px;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
+    text-shadow: 1px 1px 0px #000;
+    transition: all 0.2s ease;
+}
+
+.key:hover {
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.7);
+}
+
+.menu-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* SpaceQuest Blue Pill Buttons */
 .btn-primary {
     position: relative;
     background: url('assets/art/CGB02-blue_L_btn.png') no-repeat center center / 100% 100%;
     color: #ffffff;
     border: none;
-    min-width: 270px;
-    height: 56px;
+    min-width: 290px;
+    height: 60px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 19px;
-    font-weight: 800;
+    font-family: 'ThaleahFat', monospace;
+    font-size: 29px;
     letter-spacing: 2px;
     text-transform: uppercase;
     border-radius: 9999px;
     cursor: pointer;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7), 0 0 10px rgba(56, 189, 248, 0.9);
-    box-shadow: 0 0 30px rgba(56, 189, 248, 0.45), 0 6px 16px rgba(0, 0, 0, 0.6);
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.9), 0 0 10px rgba(155, 155, 255, 0.8);
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.45), 0 8px 18px rgba(0, 0, 0, 0.7);
+    transition: transform 0.15s ease-out, filter 0.15s ease-out;
     outline: none;
+}
+
+.pulse-btn {
+    animation: buttonBreathing 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes buttonBreathing {
+    0% {
+        box-shadow: 0 0 24px rgba(56, 189, 248, 0.35), 0 6px 14px rgba(0, 0, 0, 0.6);
+    }
+    100% {
+        box-shadow: 0 0 38px rgba(168, 168, 254, 0.85), 0 10px 22px rgba(0, 0, 0, 0.8);
+    }
 }
 
 .btn-primary:hover:not(:disabled) {
     transform: scale(1.05);
-    filter: brightness(1.18);
-    box-shadow: 0 0 40px rgba(56, 189, 248, 0.8), 0 8px 24px rgba(0, 0, 0, 0.8);
+    filter: brightness(1.18) drop-shadow(0 0 16px rgba(168, 168, 254, 0.9));
+    color: #a8a8fe;
 }
 
 .btn-primary:active:not(:disabled) {
@@ -194,7 +280,7 @@ canvas#gameCanvas {
 }
 
 .btn-primary:disabled {
-    opacity: 0.55;
+    opacity: 0.6;
     cursor: wait;
     transform: none;
     box-shadow: none;
@@ -202,31 +288,31 @@ canvas#gameCanvas {
 
 .btn-secondary {
     position: relative;
-    background: rgba(15, 23, 42, 0.85);
-    color: #94a3b8;
-    border: 1px solid rgba(56, 189, 248, 0.4);
-    min-width: 210px;
-    height: 52px;
+    background: url('assets/art/CGB02-blue_L_btn.png') no-repeat center center / 100% 100%;
+    color: #cbd5e1;
+    filter: hue-rotate(20deg) brightness(0.85);
+    border: none;
+    min-width: 240px;
+    height: 56px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 15px;
-    font-weight: 700;
+    font-family: 'ThaleahFat', monospace;
+    font-size: 25px;
     letter-spacing: 2px;
     text-transform: uppercase;
     border-radius: 9999px;
     cursor: pointer;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-    transition: all 0.2s ease;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.9);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+    transition: transform 0.15s ease-out, filter 0.15s ease-out;
     outline: none;
 }
 
 .btn-secondary:hover {
+    filter: hue-rotate(0deg) brightness(1.12);
+    transform: scale(1.05);
     color: #ffffff;
-    border-color: #38bdf8;
-    background: rgba(30, 41, 59, 0.9);
-    transform: scale(1.04);
-    box-shadow: 0 0 25px rgba(56, 189, 248, 0.35);
 }
 
 .overlay-btn-group {
@@ -236,100 +322,263 @@ canvas#gameCanvas {
     justify-content: center;
 }
 
-/* Pause Card */
-.pause-card {
-    background: rgba(15, 23, 42, 0.85);
-    border: 2px solid rgba(56, 189, 248, 0.4);
-    border-radius: 16px;
-    padding: 30px 48px;
-    text-align: center;
-    box-shadow: 0 0 45px rgba(56, 189, 248, 0.25);
-    max-width: 520px;
+.menu-credits {
+    position: absolute;
+    bottom: 12px;
+    font-family: 'ThaleahFat', monospace;
+    font-size: 15px;
+    color: #64748b;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 0px #000;
 }
 
-.pause-title {
-    font-size: 42px;
-    letter-spacing: 6px;
-    color: #38bdf8;
-    text-shadow: 0 0 25px rgba(56, 189, 248, 0.6);
-    margin-bottom: 6px;
+/* Pause Overlay */
+.pause-card {
+    background: rgba(10, 15, 30, 0.9);
+    border: 2px solid rgba(155, 155, 255, 0.5);
+    border-radius: 14px;
+    padding: 24px 44px;
+    text-align: center;
+    box-shadow: 0 0 50px rgba(155, 155, 255, 0.3);
+    max-width: 500px;
+}
+
+.pause-title-wrapper {
+    margin-bottom: 4px;
+}
+
+.pause-word {
+    font-family: 'ThaleahFat', monospace;
+    font-size: 64px;
+    letter-spacing: 5px;
+    background: linear-gradient(180deg, #9b9bff 0%, #ffffff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(3px 3px 0px #0b0f19) drop-shadow(0 0 20px rgba(155, 155, 255, 0.7));
 }
 
 .pause-subtitle {
-    font-size: 13px;
+    font-family: 'ThaleahFat', monospace;
+    font-size: 19px;
     letter-spacing: 3px;
-    color: #64748b;
-    margin-bottom: 18px;
-    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 10px;
+    text-shadow: 1px 1px 0px #000;
 }
 
-/* Game Over Card */
+.pause-hint {
+    font-family: 'ThaleahFat', monospace;
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: #cbd5e1;
+    margin-bottom: 22px;
+    text-shadow: 1px 1px 0px #000;
+}
+
+/* ===================================================
+   END UI / GAME OVER ANIMATIONS & MOVING ELEMENTS
+   =================================================== */
+
 .stats-card {
-    background: rgba(15, 23, 42, 0.88);
-    border: 2px solid rgba(239, 68, 68, 0.6);
-    padding: 20px 36px;
-    border-radius: 16px;
+    position: relative;
+    background: rgba(10, 15, 30, 0.92);
+    border: 2px solid rgba(239, 68, 68, 0.65);
+    padding: 16px 36px;
+    border-radius: 14px;
     text-align: center;
-    margin-bottom: 20px;
-    box-shadow: 0 0 40px rgba(239, 68, 68, 0.3), inset 0 0 20px rgba(239, 68, 68, 0.08);
+    margin-bottom: 18px;
+    box-shadow: 0 0 45px rgba(239, 68, 68, 0.35), inset 0 0 20px rgba(239, 68, 68, 0.1);
     min-width: 480px;
+    overflow: hidden;
 }
 
+/* Holographic scanline sweeping over stats card */
+.card-scanline {
+    position: absolute;
+    top: -100%;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(180deg, transparent 0%, rgba(239, 68, 68, 0.12) 50%, transparent 100%);
+    animation: scanlineSweep 4.5s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes scanlineSweep {
+    0% {
+        top: -100%;
+    }
+    100% {
+        top: 200%;
+    }
+}
+
+/* SpaceQuest Player_Game_Over 360-degree slow space tumble */
 .gameover-ship-container {
     display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.wreckage-wrapper {
+    position: relative;
+    display: inline-flex;
     justify-content: center;
     align-items: center;
 }
 
 .gameover-ship-img {
-    width: 110px;
+    width: 95px;
     height: auto;
-    animation: wreckageSmoke 2.5s ease-in-out infinite;
+    animation: shipTumble 18s linear infinite;
+    filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.65));
 }
 
-.gameover-title {
-    font-size: 32px;
+@keyframes shipTumble {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Drifting smoke & spark particles rising from wreckage */
+.smoke-spark {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: smokeDrift 2.2s cubic-bezier(0.2, 0.8, 0.3, 1) infinite;
+}
+
+.smoke-spark.s1 {
+    width: 10px;
+    height: 10px;
+    background: radial-gradient(circle, #fca5a5 0%, rgba(239, 68, 68, 0.7) 60%, transparent 100%);
+    top: -4px;
+    left: 20px;
+    animation-delay: 0s;
+}
+
+.smoke-spark.s2 {
+    width: 14px;
+    height: 14px;
+    background: radial-gradient(circle, #fde047 0%, rgba(249, 115, 22, 0.6) 60%, transparent 100%);
+    top: 6px;
+    right: 18px;
+    animation-delay: 0.7s;
+}
+
+.smoke-spark.s3 {
+    width: 12px;
+    height: 12px;
+    background: radial-gradient(circle, #cbd5e1 0%, rgba(100, 116, 139, 0.6) 60%, transparent 100%);
+    bottom: -6px;
+    left: 38px;
+    animation-delay: 1.4s;
+}
+
+@keyframes smokeDrift {
+    0% {
+        opacity: 0.85;
+        transform: translate(0, 0) scale(0.6);
+    }
+    50% {
+        opacity: 0.6;
+        transform: translate(8px, -18px) scale(1.1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(18px, -36px) scale(1.7);
+    }
+}
+
+.gameover-title-wrapper {
+    margin-bottom: 2px;
+}
+
+.gameover-word {
+    font-family: 'ThaleahFat', monospace;
+    font-size: 58px;
     letter-spacing: 5px;
-    color: #ef4444;
-    text-shadow: 0 0 25px rgba(239, 68, 68, 0.7);
-    margin: 6px 0 2px 0;
-    font-weight: 900;
+    background: linear-gradient(180deg, #f87171 0%, #ffffff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(3px 3px 0px #0b0f19) drop-shadow(0 0 20px rgba(239, 68, 68, 0.7));
+}
+
+.alert-pulse .gameover-word {
+    animation: alertPulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes alertPulse {
+    0% {
+        filter: drop-shadow(3px 3px 0px #0b0f19) drop-shadow(0 0 14px rgba(239, 68, 68, 0.5));
+    }
+    100% {
+        filter: drop-shadow(3px 3px 0px #0b0f19) drop-shadow(0 0 30px rgba(239, 68, 68, 0.95));
+    }
+}
+
+.gameover-subtitle {
+    font-family: 'ThaleahFat', monospace;
+    font-size: 19px;
+    letter-spacing: 3px;
+    color: #fca5a5;
+    text-shadow: 1px 1px 0px #000;
+    margin-bottom: 4px;
 }
 
 .rank-badge {
-    font-size: 32px;
-    font-weight: 900;
-    letter-spacing: 4px;
-    margin: 4px 0 14px 0;
-    text-shadow: 0 0 20px currentColor;
+    font-family: 'ThaleahFat', monospace;
+    font-size: 38px;
+    letter-spacing: 3px;
+    margin: 2px 0 10px 0;
+    text-shadow: 0 0 18px currentColor, 2px 2px 0px #000;
+}
+
+.rank-glow {
+    animation: rankGlowAnim 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes rankGlowAnim {
+    0% {
+        transform: scale(0.97);
+        filter: drop-shadow(0 0 10px currentColor);
+    }
+    100% {
+        transform: scale(1.03);
+        filter: drop-shadow(0 0 22px currentColor);
+    }
 }
 
 .stats-grid {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    background: rgba(3, 7, 18, 0.65);
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    padding: 12px 20px;
-    border-radius: 10px;
+    gap: 6px;
+    background: rgba(3, 7, 18, 0.75);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 10px 22px;
+    border-radius: 8px;
 }
 
 .stat-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 14px;
+    font-family: 'ThaleahFat', monospace;
+    font-size: 22px;
 }
 
 .stat-label {
     color: #94a3b8;
     letter-spacing: 1px;
+    text-shadow: 1px 1px 0px #000;
 }
 
 .stats-val {
-    font-weight: bold;
-    font-family: monospace;
-    font-size: 16px;
     color: #38bdf8;
-    text-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(56, 189, 248, 0.5), 1px 1px 0px #000;
 }
